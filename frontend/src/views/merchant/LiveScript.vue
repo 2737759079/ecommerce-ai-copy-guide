@@ -21,27 +21,40 @@
         </select>
         <button @click="generate" :disabled="!productId || loading" class="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-60">生成脚本</button>
       </div>
+      <p v-if="error" class="text-red-500 text-sm mt-3">{{ error }}</p>
     </div>
     <div v-if="result" class="bg-white rounded-xl shadow-sm p-6">
-      <h3 class="font-bold text-lg mb-3">生成结果</h3>
-      <pre class="bg-gray-50 p-4 rounded-lg text-sm text-gray-700 whitespace-pre-wrap">{{ result }}</pre>
-      <div class="mt-4 flex justify-end space-x-2">
-        <button @click="copy" class="px-4 py-2 border rounded-lg hover:bg-gray-50">复制</button>
+      <div class="flex justify-between items-center mb-3">
+        <h3 class="font-bold text-lg">生成结果</h3>
+        <div class="space-x-2">
+          <button @click="exportFile('txt')" class="px-3 py-1.5 border rounded-lg text-sm hover:bg-gray-50">导出TXT</button>
+          <button @click="exportFile('docx')" class="px-3 py-1.5 border rounded-lg text-sm hover:bg-gray-50">导出Word</button>
+          <button @click="copy" class="px-3 py-1.5 border rounded-lg text-sm hover:bg-gray-50">复制</button>
+        </div>
       </div>
+      <div class="prose max-w-none bg-gray-50 p-4 rounded-lg text-sm text-gray-700" v-html="renderedMarkdown"></div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
+import { marked } from 'marked'
+import DOMPurify from 'dompurify'
 import api from '../../api/axios'
 
 const products = ref([])
 const productId = ref('')
 const style = ref('professional')
 const platform = ref('live')
-const result = ref('')
+const result = ref(null)
 const loading = ref(false)
+const error = ref('')
+
+const renderedMarkdown = computed(() => {
+  if (!result.value?.content) return ''
+  return DOMPurify.sanitize(marked.parse(result.value.content))
+})
 
 async function loadProducts() {
   const res = await api.get('/products?status=')
@@ -50,16 +63,35 @@ async function loadProducts() {
 
 async function generate() {
   loading.value = true
+  error.value = ''
+  result.value = null
   try {
-    const res = await api.post('/ai/script', { product_id: productId.value, style: style.value, platform: platform.value })
+    const res = await api.post('/ai/script', { product_id: Number(productId.value), style: style.value, platform: platform.value })
     result.value = res.data.result
+  } catch (e) {
+    error.value = e.response?.data?.detail || e.message || '生成失败'
   } finally {
     loading.value = false
   }
 }
 
+async function exportFile(fmt) {
+  if (!result.value) return
+  const res = await api.post('/ai/script/export', {
+    format: fmt,
+    content: result.value.content,
+    title: result.value.title || '脚本'
+  }, { responseType: 'blob' })
+  const url = URL.createObjectURL(new Blob([res.data]))
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `${result.value.title || '脚本'}.${fmt}`
+  a.click()
+}
+
 function copy() {
-  navigator.clipboard.writeText(result.value)
+  if (!result.value) return
+  navigator.clipboard.writeText(result.value.content)
   alert('已复制')
 }
 

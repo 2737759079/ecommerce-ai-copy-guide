@@ -7,6 +7,7 @@ class Order(Base):
     __tablename__ = "orders"
 
     id = Column(Integer, primary_key=True, index=True)
+    order_no = Column(String(32), unique=True, index=True, default="")
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     status = Column(String(32), default="pending")  # pending / paid / shipped / completed / cancelled
     total_amount = Column(Float, default=0.0)

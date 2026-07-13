@@ -9,6 +9,7 @@ from app.models.product import Product
 from app.models.knowledge import KnowledgeItem
 from app.models.review import Review
 from app.utils.security import get_password_hash
+from app.utils.helpers import generate_user_display_id, generate_product_display_id
 from app.services import rag_service
 
 
@@ -20,6 +21,7 @@ def init():
         if not db.query(User).filter(User.username == "admin").first():
             admin = User(
                 username="admin",
+                display_id=generate_user_display_id(db),
                 password_hash=get_password_hash("123456"),
                 nickname="超级管理员",
                 role="merchant",
@@ -34,6 +36,7 @@ def init():
         if not db.query(User).filter(User.username == "user").first():
             user = User(
                 username="user",
+                display_id=generate_user_display_id(db),
                 password_hash=get_password_hash("123456"),
                 nickname="测试用户",
                 role="user",
@@ -57,7 +60,7 @@ def init():
                 "stock": 500,
                 "status": "on",
                 "specs": ["珍珠白", "曜石黑", "樱花粉"],
-                "image_url": "https://images.unsplash.com/photo-1559671088-795c5c1555a1?auto=format&fit=crop&w=600&q=80",
+                "images": ["https://images.unsplash.com/photo-1559671088-795c5c1555a1?auto=format&fit=crop&w=600&q=80"],
             },
             {
                 "name": "智能降噪蓝牙耳机",
@@ -67,7 +70,7 @@ def init():
                 "stock": 300,
                 "status": "on",
                 "specs": ["云岩白", "午夜黑", "薄荷绿"],
-                "image_url": "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=600&q=80",
+                "images": ["https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=600&q=80"],
             },
             {
                 "name": "便携式挂脖风扇",
@@ -77,7 +80,7 @@ def init():
                 "stock": 800,
                 "status": "on",
                 "specs": ["清新蓝", "活力橙","简约白"],
-                "image_url": "https://images.unsplash.com/photo-1617112848923-ccef2e6cf092?auto=format&fit=crop&w=600&q=80",
+                "images": ["https://images.unsplash.com/photo-1617112848923-ccef2e6cf092?auto=format&fit=crop&w=600&q=80"],
             },
             {
                 "name": "纯棉亲肤四件套",
@@ -87,7 +90,7 @@ def init():
                 "stock": 200,
                 "status": "on",
                 "specs": ["1.5m床", "1.8m床", "2.0m床"],
-                "image_url": "https://images.unsplash.com/photo-1631679706909-1844bbd07221?auto=format&fit=crop&w=600&q=80",
+                "images": ["https://images.unsplash.com/photo-1631679706909-1844bbd07221?auto=format&fit=crop&w=600&q=80"],
             },
             {
                 "name": "待上架新品-智能保温杯",
@@ -97,7 +100,7 @@ def init():
                 "stock": 100,
                 "status": "off",
                 "specs": ["典雅黑", "象牙白"],
-                "image_url": "https://images.unsplash.com/photo-1514228742587-6b1558fcca3d?auto=format&fit=crop&w=600&q=80",
+                "images": ["https://images.unsplash.com/photo-1514228742587-6b1558fcca3d?auto=format&fit=crop&w=600&q=80"],
             },
         ]
 
@@ -108,7 +111,7 @@ def init():
                 print(f"商品已存在: {p['name']}")
                 created_products.append(existing)
                 continue
-            product = Product(**p)
+            product = Product(display_id=generate_product_display_id(db), **p)
             db.add(product)
             db.commit()
             db.refresh(product)

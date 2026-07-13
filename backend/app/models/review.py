@@ -12,4 +12,5 @@ class Review(Base):
     rating = Column(Integer, default=5)
     content = Column(Text, default="")
     sentiment = Column(String(16), default="neutral")  # positive / neutral / negative
+    source = Column(String(16), default="user")  # user / merchant
     created_at = Column(DateTime, server_default=func.now())

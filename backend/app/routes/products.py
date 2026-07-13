@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from typing import List, Optional
@@ -12,6 +12,7 @@ from app.models.favorite import Favorite
 from app.models.browse_history import BrowseHistory
 from app.schemas import ProductCreate, ProductUpdate, ProductOut, FavoriteOut
 from app.utils.security import get_current_user, require_merchant
+from app.utils.helpers import save_upload_file, generate_product_display_id
 from app.services import rag_service
 
 router = APIRouter()
@@ -22,11 +23,14 @@ def list_products(
     category: Optional[str] = None,
     keyword: Optional[str] = None,
     status: Optional[str] = "on",
+    include_deleted: bool = False,
     db: Session = Depends(get_db),
 ):
     q = db.query(Product)
     if status:
         q = q.filter(Product.status == status)
+    if not include_deleted:
+        q = q.filter(Product.status != "deleted")
     if category:
         q = q.filter(Product.category == category)
     if keyword:
@@ -58,6 +62,26 @@ def browse_history(db: Session = Depends(get_db), current_user: User = Depends(g
     return [{"id": h.id, "product": p, "created_at": h.created_at} for h, p in rows]
 
 
+@router.get("/template/download")
+def download_template(_: User = Depends(require_merchant)):
+    df = pd.DataFrame([{
+        "name": "示例商品",
+        "category": "分类",
+        "description": "商品描述",
+        "price": 99.0,
+        "stock": 100,
+        "status": "on",
+        "specs": "规格1,规格2",
+        "images": "图片URL1,图片URL2",
+        "video_url": "视频URL",
+    }])
+    buffer = io.BytesIO()
+    df.to_excel(buffer, index=False)
+    buffer.seek(0)
+    from fastapi.responses import StreamingResponse
+    return StreamingResponse(buffer, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": "attachment; filename=product_template.xlsx"})
+
+
 @router.post("/import")
 def import_products(file: UploadFile = File(...), db: Session = Depends(get_db), _: User = Depends(require_merchant)):
     ext = file.filename.split(".")[-1].lower()
@@ -74,7 +98,11 @@ def import_products(file: UploadFile = File(...), db: Session = Depends(get_db),
         specs = item.get("specs", "")
         if isinstance(specs, str):
             specs = [s.strip() for s in specs.split(",") if s.strip()]
+        images = item.get("images", "")
+        if isinstance(images, str):
+            images = [s.strip() for s in images.split(",") if s.strip()]
         product = Product(
+            display_id=generate_product_display_id(db),
             name=item.get("name", ""),
             category=item.get("category", ""),
             description=item.get("description", ""),
@@ -82,20 +110,22 @@ def import_products(file: UploadFile = File(...), db: Session = Depends(get_db),
             stock=int(item.get("stock", 0) or 0),
             status=item.get("status", "off"),
             specs=specs,
-            image_url=item.get("image_url", ""),
+            images=images,
+            video_url=item.get("video_url", ""),
         )
         db.add(product)
+        db.commit()
+        db.refresh(product)
         count += 1
-    db.commit()
     return {"ok": True, "count": count}
 
 
 @router.get("/export/data")
 def export_products(db: Session = Depends(get_db), _: User = Depends(require_merchant)):
     products = db.query(Product).all()
-    return [
+    data = [
         {
-            "id": p.id,
+            "display_id": p.display_id,
             "name": p.name,
             "category": p.category,
             "description": p.description,
@@ -103,12 +133,19 @@ def export_products(db: Session = Depends(get_db), _: User = Depends(require_mer
             "stock": p.stock,
             "status": p.status,
             "specs": ",".join(p.specs) if p.specs else "",
-            "image_url": p.image_url,
+            "images": ",".join(p.images) if p.images else "",
+            "video_url": p.video_url,
             "ai_title": p.ai_title,
             "ai_slogan": p.ai_slogan,
         }
         for p in products
     ]
+    df = pd.DataFrame(data)
+    buffer = io.BytesIO()
+    df.to_excel(buffer, index=False)
+    buffer.seek(0)
+    from fastapi.responses import StreamingResponse
+    return StreamingResponse(buffer, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": "attachment; filename=products.xlsx"})
 
 
 @router.get("/{product_id}", response_model=ProductOut)
@@ -120,8 +157,38 @@ def get_product(product_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("", response_model=ProductOut)
-def create_product(payload: ProductCreate, db: Session = Depends(get_db), _: User = Depends(require_merchant)):
-    product = Product(**payload.model_dump())
+def create_product(
+    name: str = Form(...),
+    category: Optional[str] = Form(""),
+    description: Optional[str] = Form(""),
+    price: float = Form(0.0),
+    stock: int = Form(0),
+    status: Optional[str] = Form("off"),
+    specs: Optional[str] = Form(""),
+    images: List[UploadFile] = File(default=[]),
+    video: Optional[UploadFile] = File(None),
+    db: Session = Depends(get_db),
+    _: User = Depends(require_merchant),
+):
+    image_urls = []
+    for img in images:
+        if img.filename:
+            image_urls.append(save_upload_file(img, "images"))
+    video_url = ""
+    if video and video.filename:
+        video_url = save_upload_file(video, "videos")
+    product = Product(
+        display_id=generate_product_display_id(db),
+        name=name,
+        category=category,
+        description=description,
+        price=price,
+        stock=stock,
+        status=status,
+        specs=[s.strip() for s in specs.split(",") if s.strip()] if specs else [],
+        images=image_urls,
+        video_url=video_url,
+    )
     db.add(product)
     db.commit()
     db.refresh(product)
@@ -129,12 +196,49 @@ def create_product(payload: ProductCreate, db: Session = Depends(get_db), _: Use
 
 
 @router.put("/{product_id}", response_model=ProductOut)
-def update_product(product_id: int, payload: ProductUpdate, db: Session = Depends(get_db), _: User = Depends(require_merchant)):
+def update_product(
+    product_id: int,
+    name: Optional[str] = Form(None),
+    category: Optional[str] = Form(None),
+    description: Optional[str] = Form(None),
+    price: Optional[float] = Form(None),
+    stock: Optional[int] = Form(None),
+    status: Optional[str] = Form(None),
+    specs: Optional[str] = Form(None),
+    keep_images: Optional[str] = Form(""),
+    images: List[UploadFile] = File(default=[]),
+    video: Optional[UploadFile] = File(None),
+    db: Session = Depends(get_db),
+    _: User = Depends(require_merchant),
+):
     product = db.query(Product).filter(Product.id == product_id).first()
     if not product:
         raise HTTPException(status_code=404, detail="商品不存在")
-    for k, v in payload.model_dump(exclude_unset=True).items():
-        setattr(product, k, v)
+    if name is not None:
+        product.name = name
+    if category is not None:
+        product.category = category
+    if description is not None:
+        product.description = description
+    if price is not None:
+        product.price = price
+    if stock is not None:
+        product.stock = stock
+    if status is not None:
+        product.status = status
+    if specs is not None:
+        product.specs = [s.strip() for s in specs.split(",") if s.strip()]
+
+    retained = [u.strip() for u in keep_images.split(",") if u.strip()]
+    image_urls = list(retained)
+    for img in images:
+        if img.filename:
+            image_urls.append(save_upload_file(img, "images"))
+    product.images = image_urls
+
+    if video and video.filename:
+        product.video_url = save_upload_file(video, "videos")
+
     db.commit()
     db.refresh(product)
     return product
@@ -145,7 +249,7 @@ def delete_product(product_id: int, db: Session = Depends(get_db), _: User = Dep
     product = db.query(Product).filter(Product.id == product_id).first()
     if not product:
         raise HTTPException(status_code=404, detail="商品不存在")
-    db.delete(product)
+    product.status = "deleted"
     db.commit()
     return {"ok": True}
 

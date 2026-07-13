@@ -1,21 +1,28 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy import desc
-from typing import List
+from sqlalchemy import desc, func
+from typing import List, Dict
+from datetime import datetime
 from app.database import get_db
 from app.models.user import User
 from app.models.product import Product
 from app.models.order import Order, OrderItem
 from app.schemas import OrderCreate, OrderOut
 from app.utils.security import get_current_user, require_merchant
+from app.utils.helpers import generate_order_no
 
 router = APIRouter()
 
 
-def _serialize_order(order: Order) -> dict:
+def _serialize_order(order: Order, user_map: Dict[int, User] = None, product_map: Dict[int, Product] = None) -> dict:
+    user = (user_map or {}).get(order.user_id)
+    product_map = product_map or {}
     return {
         "id": order.id,
+        "order_no": order.order_no,
         "user_id": order.user_id,
+        "user_display_id": user.display_id if user else "",
+        "user_nickname": user.nickname if user else "",
         "status": order.status,
         "total_amount": order.total_amount,
         "address": order.address,
@@ -28,6 +35,8 @@ def _serialize_order(order: Order) -> dict:
                 "quantity": i.quantity,
                 "price": i.price,
                 "spec": i.spec,
+                "product_name": product_map.get(i.product_id, Product(name="")).name,
+                "product_display_id": product_map.get(i.product_id, Product(display_id="")).display_id,
             }
             for i in order.items
         ],
@@ -36,10 +45,14 @@ def _serialize_order(order: Order) -> dict:
 
 @router.post("/checkout", response_model=OrderOut)
 def checkout(payload: OrderCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if not payload.address or not payload.address.strip():
+        raise HTTPException(status_code=400, detail="请先填写收货地址")
     total = 0.0
-    order = Order(user_id=current_user.id, status="pending", total_amount=0.0, address=payload.address or "")
+    order = Order(user_id=current_user.id, status="pending", total_amount=0.0, address=payload.address)
     db.add(order)
     db.flush()
+    first_product_id = None
+    product_map = {}
     for item in payload.items:
         product = db.query(Product).filter(Product.id == item.product_id).first()
         if not product or product.status != "on":
@@ -49,22 +62,74 @@ def checkout(payload: OrderCreate, db: Session = Depends(get_db), current_user: 
         product.stock -= item.quantity
         db.add(OrderItem(order_id=order.id, product_id=item.product_id, quantity=item.quantity, price=product.price, spec=item.spec or ""))
         total += product.price * item.quantity
+        product_map[product.id] = product
+        if first_product_id is None:
+            first_product_id = item.product_id
     order.total_amount = total
+    order.order_no = generate_order_no(db, first_product_id)
     db.commit()
     db.refresh(order)
-    return _serialize_order(order)
+    return _serialize_order(order, {current_user.id: current_user}, product_map)
 
 
 @router.get("/my", response_model=List[OrderOut])
-def my_orders(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    orders = db.query(Order).filter(Order.user_id == current_user.id).order_by(desc(Order.created_at)).all()
-    return [_serialize_order(o) for o in orders]
+def my_orders(status: str = None, keyword: str = None, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    q = db.query(Order).filter(Order.user_id == current_user.id)
+    if status:
+        q = q.filter(Order.status == status)
+    if keyword:
+        q = q.filter(Order.order_no.contains(keyword))
+    orders = q.order_by(desc(Order.created_at)).all()
+    product_ids = {i.product_id for o in orders for i in o.items}
+    product_map = {p.id: p for p in db.query(Product).filter(Product.id.in_(product_ids)).all()}
+    user_map = {current_user.id: current_user}
+    return [_serialize_order(o, user_map, product_map) for o in orders]
 
 
 @router.get("/all/list", response_model=List[OrderOut])
-def all_orders(db: Session = Depends(get_db), _: User = Depends(require_merchant)):
-    orders = db.query(Order).order_by(desc(Order.created_at)).all()
-    return [_serialize_order(o) for o in orders]
+def all_orders(keyword: str = None, status: str = None, db: Session = Depends(get_db), _: User = Depends(require_merchant)):
+    q = db.query(Order)
+    if keyword:
+        q = q.filter(Order.order_no.contains(keyword))
+    if status:
+        q = q.filter(Order.status == status)
+    orders = q.order_by(desc(Order.created_at)).all()
+    user_ids = {o.user_id for o in orders}
+    product_ids = {i.product_id for o in orders for i in o.items}
+    user_map = {u.id: u for u in db.query(User).filter(User.id.in_(user_ids)).all()}
+    product_map = {p.id: p for p in db.query(Product).filter(Product.id.in_(product_ids)).all()}
+    return [_serialize_order(o, user_map, product_map) for o in orders]
+
+
+@router.get("/dashboard")
+def dashboard(date_str: str = None, db: Session = Depends(get_db), _: User = Depends(require_merchant)):
+    if date_str:
+        selected = datetime.strptime(date_str, "%Y-%m-%d").date()
+    else:
+        selected = datetime.now().date()
+    month_str = selected.strftime("%Y-%m")
+    paid_statuses = ("paid", "shipped", "completed", "refunded")
+
+    daily_orders = db.query(Order).filter(func.date(Order.created_at) == selected, Order.status.in_(paid_statuses)).all()
+    monthly_orders = db.query(Order).filter(func.strftime("%Y-%m", Order.created_at) == month_str, Order.status.in_(paid_statuses)).all()
+    return_orders = db.query(Order).filter(func.date(Order.updated_at) == selected, Order.status == "refunded").count()
+    cancel_orders = db.query(Order).filter(func.date(Order.updated_at) == selected, Order.status == "cancelled").count()
+    recent = db.query(Order).filter(func.date(Order.created_at) == selected).order_by(desc(Order.created_at)).all()
+
+    user_ids = {o.user_id for o in recent}
+    product_ids = {i.product_id for o in recent for i in o.items}
+    user_map = {u.id: u for u in db.query(User).filter(User.id.in_(user_ids)).all()}
+    product_map = {p.id: p for p in db.query(Product).filter(Product.id.in_(product_ids)).all()}
+
+    return {
+        "date": selected.isoformat(),
+        "daily_amount": round(sum(o.total_amount for o in daily_orders), 2),
+        "monthly_amount": round(sum(o.total_amount for o in monthly_orders), 2),
+        "daily_orders": len(daily_orders),
+        "return_orders": return_orders,
+        "cancel_orders": cancel_orders,
+        "recent_orders": [_serialize_order(o, user_map, product_map) for o in recent],
+    }
 
 
 @router.get("/{order_id}", response_model=OrderOut)
@@ -74,7 +139,14 @@ def get_order(order_id: int, db: Session = Depends(get_db), current_user: User =
         raise HTTPException(status_code=404, detail="订单不存在")
     if order.user_id != current_user.id and current_user.role != "merchant":
         raise HTTPException(status_code=403, detail="无权查看")
-    return _serialize_order(order)
+    user_map = {current_user.id: current_user}
+    if current_user.role == "merchant" and order.user_id != current_user.id:
+        user = db.query(User).filter(User.id == order.user_id).first()
+        if user:
+            user_map[order.user_id] = user
+    product_ids = {i.product_id for i in order.items}
+    product_map = {p.id: p for p in db.query(Product).filter(Product.id.in_(product_ids)).all()}
+    return _serialize_order(order, user_map, product_map)
 
 
 @router.post("/{order_id}/pay")
@@ -115,3 +187,59 @@ def complete_order(order_id: int, db: Session = Depends(get_db), current_user: U
     order.status = "completed"
     db.commit()
     return {"ok": True, "status": order.status}
+
+
+@router.post("/{order_id}/cancel")
+def cancel_order(order_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    order = db.query(Order).filter(Order.id == order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="订单不存在")
+    if order.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="无权操作")
+    if order.status not in ("pending", "paid"):
+        raise HTTPException(status_code=400, detail="当前状态不可取消")
+    for item in order.items:
+        product = db.query(Product).filter(Product.id == item.product_id).first()
+        if product:
+            product.stock += item.quantity
+    if order.status == "paid":
+        order.status = "refunded"
+    else:
+        order.status = "cancelled"
+    db.commit()
+    return {"ok": True, "status": order.status}
+
+
+@router.put("/{order_id}/address")
+def update_address(order_id: int, address: str, db: Session = Depends(get_db), _: User = Depends(require_merchant)):
+    order = db.query(Order).filter(Order.id == order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="订单不存在")
+    order.address = address
+    db.commit()
+    return {"ok": True}
+
+
+@router.put("/{order_id}/status")
+def update_status(order_id: int, status: str, db: Session = Depends(get_db), _: User = Depends(require_merchant)):
+    order = db.query(Order).filter(Order.id == order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="订单不存在")
+    order.status = status
+    db.commit()
+    return {"ok": True, "status": order.status}
+
+
+@router.delete("/{order_id}")
+def delete_order(order_id: int, refund: bool = True, db: Session = Depends(get_db), _: User = Depends(require_merchant)):
+    order = db.query(Order).filter(Order.id == order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="订单不存在")
+    if refund and order.status == "paid":
+        for item in order.items:
+            product = db.query(Product).filter(Product.id == item.product_id).first()
+            if product:
+                product.stock += item.quantity
+    db.delete(order)
+    db.commit()
+    return {"ok": True}

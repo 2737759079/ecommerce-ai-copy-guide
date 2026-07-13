@@ -1,7 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from typing import List
+import io
+import pandas as pd
+from fastapi.responses import StreamingResponse
 from app.database import get_db
 from app.models.user import User
 from app.models.product import Product
@@ -19,6 +22,78 @@ def list_items(product_id: int = None, db: Session = Depends(get_db), _: User = 
     if product_id:
         q = q.filter(KnowledgeItem.product_id == product_id)
     return q.order_by(desc(KnowledgeItem.created_at)).all()
+
+
+@router.get("/template/download")
+def download_template(_: User = Depends(require_merchant)):
+    df = pd.DataFrame([{
+        "product_name": "示例商品名称（留空表示通用）",
+        "category": "common",
+        "question": "问题内容",
+        "answer": "回答内容",
+    }])
+    buffer = io.BytesIO()
+    df.to_excel(buffer, index=False)
+    buffer.seek(0)
+    return StreamingResponse(buffer, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": "attachment; filename=knowledge_template.xlsx"})
+
+
+@router.get("/export")
+def export_knowledge(product_id: int = None, db: Session = Depends(get_db), _: User = Depends(require_merchant)):
+    q = db.query(KnowledgeItem)
+    if product_id:
+        q = q.filter(KnowledgeItem.product_id == product_id)
+    items = q.order_by(desc(KnowledgeItem.created_at)).all()
+    product_map = {p.id: p.name for p in db.query(Product).all()}
+    data = [
+        {
+            "id": item.id,
+            "product_name": product_map.get(item.product_id, "通用"),
+            "category": item.category,
+            "question": item.question,
+            "answer": item.answer,
+            "created_at": item.created_at.strftime("%Y-%m-%d %H:%M:%S") if item.created_at else "",
+        }
+        for item in items
+    ]
+    df = pd.DataFrame(data, columns=["id", "product_name", "category", "question", "answer", "created_at"])
+    buffer = io.BytesIO()
+    df.to_excel(buffer, index=False)
+    buffer.seek(0)
+    return StreamingResponse(buffer, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": "attachment; filename=knowledge_export.xlsx"})
+
+
+@router.post("/import")
+def import_knowledge(file: UploadFile = File(...), db: Session = Depends(get_db), _: User = Depends(require_merchant)):
+    ext = file.filename.split(".")[-1].lower()
+    if ext not in ("xlsx", "xls"):
+        raise HTTPException(status_code=400, detail="仅支持xlsx/xls")
+    df = pd.read_excel(io.BytesIO(file.file.read()))
+    rows = df.to_dict(orient="records")
+    count = 0
+    products = {p.name: p.id for p in db.query(Product).all()}
+    for row in rows:
+        product_name = str(row.get("product_name", "") or "").strip()
+        product_id = products.get(product_name)
+        category = str(row.get("category", "common") or "common").strip()
+        question = str(row.get("question", "") or "").strip()
+        answer = str(row.get("answer", "") or "").strip()
+        if not question or not answer:
+            continue
+        item = KnowledgeItem(product_id=product_id, category=category, question=question, answer=answer)
+        db.add(item)
+        db.commit()
+        db.refresh(item)
+        text = f"问题：{item.question}\n回答：{item.answer}"
+        eid = rag_service.add_knowledge(text, {
+            "product_id": item.product_id,
+            "question": item.question,
+            "category": item.category,
+        })
+        item.embedding_id = eid
+        db.commit()
+        count += 1
+    return {"ok": True, "count": count}
 
 
 @router.post("", response_model=KnowledgeItemOut)

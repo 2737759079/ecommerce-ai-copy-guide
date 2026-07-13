@@ -2,7 +2,20 @@
   <div>
     <div class="flex justify-between items-center mb-6">
       <h2 class="text-2xl font-bold text-gray-800">知识库管理</h2>
-      <button @click="showForm = true" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700">新增知识</button>
+      <div class="space-x-2">
+        <button @click="downloadTemplate" class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700">下载模板</button>
+        <input type="file" @change="importKnowledge" accept=".xlsx,.xls" class="hidden" ref="importInput" />
+        <button @click="$refs.importInput.click()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">批量导入</button>
+        <button @click="showForm = true" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700">新增知识</button>
+      </div>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm p-4 mb-6 flex gap-4 flex-wrap items-center">
+      <select v-model="filter.productId" class="border rounded-lg px-3 py-2 text-sm">
+        <option value="">全部商品</option>
+        <option v-for="p in products" :key="p.id" :value="p.id">{{ p.name }}</option>
+      </select>
+      <button @click="loadData" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-indigo-700">筛选</button>
+      <button @click="exportKnowledge" class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700">导出Excel</button>
     </div>
     <div class="bg-white rounded-xl shadow-sm overflow-hidden">
       <table class="w-full text-sm text-left">
@@ -61,9 +74,12 @@ const products = ref([])
 const showForm = ref(false)
 const editing = ref(false)
 const form = ref({ product_id: null, category: 'common', question: '', answer: '' })
+const filter = ref({ productId: '' })
 
 async function loadData() {
-  const [i, p] = await Promise.all([api.get('/knowledge'), api.get('/products?status=')])
+  const params = {}
+  if (filter.value.productId) params.product_id = filter.value.productId
+  const [i, p] = await Promise.all([api.get('/knowledge', { params }), api.get('/products?status=')])
   items.value = i.data
   products.value = p.data
 }
@@ -94,6 +110,36 @@ async function save() {
 async function remove(id) {
   if (!confirm('确定删除？')) return
   await api.delete(`/knowledge/${id}`)
+  loadData()
+}
+
+async function downloadTemplate() {
+  const res = await api.get('/knowledge/template/download', { responseType: 'blob' })
+  const url = URL.createObjectURL(new Blob([res.data]))
+  const a = document.createElement('a')
+  a.href = url
+  a.download = 'knowledge_template.xlsx'
+  a.click()
+}
+
+async function exportKnowledge() {
+  const params = {}
+  if (filter.value.productId) params.product_id = filter.value.productId
+  const res = await api.get('/knowledge/export', { params, responseType: 'blob' })
+  const url = URL.createObjectURL(new Blob([res.data]))
+  const a = document.createElement('a')
+  a.href = url
+  a.download = 'knowledge_export.xlsx'
+  a.click()
+}
+
+async function importKnowledge(e) {
+  const file = e.target.files[0]
+  if (!file) return
+  const formData = new FormData()
+  formData.append('file', file)
+  await api.post('/knowledge/import', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
+  alert('导入成功')
   loadData()
 }
 

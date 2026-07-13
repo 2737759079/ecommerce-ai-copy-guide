@@ -10,9 +10,9 @@ class Token(BaseModel):
 
 
 class UserCreate(BaseModel):
-    username: str = Field(..., min_length=3, max_length=64)
+    username: Optional[str] = None
     password: str = Field(..., min_length=6)
-    nickname: Optional[str] = ""
+    nickname: str = Field(..., min_length=1, max_length=64)
     role: Optional[str] = "user"
 
 
@@ -24,8 +24,10 @@ class UserLogin(BaseModel):
 
 class UserOut(BaseModel):
     id: int
+    display_id: str
     username: str
     nickname: str
+    avatar_url: str
     role: str
     created_at: datetime
 
@@ -35,6 +37,11 @@ class UserOut(BaseModel):
 
 class PasswordReset(BaseModel):
     username: str
+    new_password: str = Field(..., min_length=6)
+
+
+class UserPasswordUpdate(BaseModel):
+    old_password: str
     new_password: str = Field(..., min_length=6)
 
 
@@ -57,7 +64,8 @@ class ProductBase(BaseModel):
     stock: int = 0
     status: Optional[str] = "off"
     specs: Optional[List[str]] = []
-    image_url: Optional[str] = ""
+    images: Optional[List[str]] = []
+    video_url: Optional[str] = ""
 
 
 class ProductCreate(ProductBase):
@@ -72,7 +80,8 @@ class ProductUpdate(BaseModel):
     stock: Optional[int] = None
     status: Optional[str] = None
     specs: Optional[List[str]] = None
-    image_url: Optional[str] = None
+    images: Optional[List[str]] = None
+    video_url: Optional[str] = None
     ai_title: Optional[str] = None
     ai_selling_points: Optional[str] = None
     ai_detail: Optional[str] = None
@@ -81,6 +90,7 @@ class ProductUpdate(BaseModel):
 
 class ProductOut(ProductBase):
     id: int
+    display_id: str
     ai_title: Optional[str] = ""
     ai_selling_points: Optional[str] = ""
     ai_detail: Optional[str] = ""
@@ -140,6 +150,8 @@ class OrderItemOut(BaseModel):
     quantity: int
     price: float
     spec: str
+    product_name: Optional[str] = ""
+    product_display_id: Optional[str] = ""
 
     class Config:
         from_attributes = True
@@ -147,7 +159,10 @@ class OrderItemOut(BaseModel):
 
 class OrderOut(BaseModel):
     id: int
+    order_no: str
     user_id: int
+    user_display_id: Optional[str] = ""
+    user_nickname: Optional[str] = ""
     status: str
     total_amount: float
     address: str
@@ -174,10 +189,17 @@ class ReviewOut(BaseModel):
     rating: int
     content: str
     sentiment: str
+    source: str
     created_at: datetime
 
     class Config:
         from_attributes = True
+
+
+class MerchantReviewCreate(BaseModel):
+    product_id: int
+    rating: int = Field(..., ge=1, le=5)
+    content: str
 
 
 class LiveScriptCreate(BaseModel):
@@ -236,7 +258,7 @@ class AISimpleRequest(BaseModel):
 
 
 class AIResponse(BaseModel):
-    result: str
+    result: dict
 
 
 class SentimentStats(BaseModel):
@@ -244,3 +266,10 @@ class SentimentStats(BaseModel):
     neutral: int
     negative: int
     avg_rating: float
+    positive_keywords: Optional[List[str]] = []
+    negative_keywords: Optional[List[str]] = []
+
+
+class AdminNoteCreate(BaseModel):
+    target_admin_id: int
+    note: str

@@ -30,7 +30,7 @@ def generate_copy(payload: AICopyRequest, db: Session = Depends(get_db), _: User
     product.ai_detail = result.get("detail", "")
     product.ai_slogan = result.get("slogan", "")
     db.commit()
-    return AIResponse(result=f"标题：{product.ai_title}\n\n卖点：{product.ai_selling_points}\n\n详情：{product.ai_detail}\n\n广告语：{product.ai_slogan}")
+    return AIResponse(result=result)
 
 
 @router.post("/script", response_model=AIResponse)
@@ -50,7 +50,31 @@ def generate_script(payload: AIScriptRequest, db: Session = Depends(get_db), _: 
     script = LiveScript(product_id=product.id, title=f"{product.name}-{'直播' if payload.platform == 'live' else '短视频'}脚本", style=payload.style, content=content)
     db.add(script)
     db.commit()
-    return AIResponse(result=content)
+    return AIResponse(result={"content": content, "title": f"{product.name}-{'直播' if payload.platform == 'live' else '短视频'}脚本"})
+
+
+@router.post("/script/export")
+def export_script(payload: dict, db: Session = Depends(get_db), _: User = Depends(require_merchant)):
+    fmt = payload.get("format", "txt")
+    content = payload.get("content", "")
+    title = payload.get("title", "脚本")
+    if fmt == "docx":
+        from docx import Document
+        import io
+        doc = Document()
+        doc.add_heading(title, level=1)
+        for line in content.split("\n"):
+            doc.add_paragraph(line)
+        buffer = io.BytesIO()
+        doc.save(buffer)
+        buffer.seek(0)
+        from fastapi.responses import StreamingResponse
+        return StreamingResponse(buffer, media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document", headers={"Content-Disposition": f"attachment; filename={title}.docx"})
+    else:
+        import io
+        buffer = io.BytesIO(content.encode("utf-8"))
+        from fastapi.responses import StreamingResponse
+        return StreamingResponse(buffer, media_type="text/plain", headers={"Content-Disposition": f"attachment; filename={title}.txt"})
 
 
 @router.get("/scripts")

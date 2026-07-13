@@ -1,29 +1,49 @@
 <template>
-  <div class="fixed bottom-6 right-6 z-50">
-    <div v-if="open" class="bg-white w-80 sm:w-96 h-[500px] rounded-2xl shadow-2xl flex flex-col border border-gray-200 mb-4">
-      <div class="bg-indigo-600 text-white px-4 py-3 rounded-t-2xl flex justify-between items-center">
-        <span class="font-medium">AI智能导购</span>
-        <button @click="open = false" class="text-white hover:text-gray-200">×</button>
+  <div class="fixed bottom-6 right-6 z-50 flex flex-col items-end">
+    <div v-if="open" class="bg-white w-80 sm:w-96 h-[520px] rounded-2xl shadow-2xl flex flex-col border border-gray-100 mb-4 overflow-hidden modal-in">
+      <div class="bg-gradient-to-r from-indigo-600 via-violet-600 to-pink-500 text-white px-5 py-4 flex justify-between items-center">
+        <div class="flex items-center space-x-2">
+          <SparklesIcon class="w-5 h-5" />
+          <span class="font-medium">AI智能导购</span>
+        </div>
+        <button @click="open = false" class="text-white/80 hover:text-white hover:bg-white/20 rounded-lg p-1 transition-colors">
+          <XMarkIcon class="w-5 h-5" />
+        </button>
       </div>
-      <div ref="box" class="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50">
-        <div v-for="(msg, idx) in messages" :key="idx" :class="msg.role === 'user' ? 'text-right' : 'text-left'">
-          <div :class="msg.role === 'user' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-800 border'" class="inline-block px-4 py-2 rounded-xl text-sm max-w-[85%] whitespace-pre-wrap">
-            {{ msg.content }}
+      <div ref="box" class="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
+        <div v-for="(msg, idx) in messages" :key="idx" :class="msg.role === 'user' ? 'text-right' : 'text-left'" class="fade-in-up" :style="{ animationDelay: idx * 50 + 'ms' }">
+          <div class="flex items-end space-x-2" :class="msg.role === 'user' ? 'flex-row-reverse space-x-reverse' : ''">
+            <div class="w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold" :class="msg.role === 'user' ? 'bg-gradient-to-br from-indigo-500 to-pink-500 text-white' : 'bg-gradient-to-br from-violet-500 to-indigo-600 text-white'">
+              {{ msg.role === 'user' ? '我' : 'AI' }}
+            </div>
+            <div :class="msg.role === 'user' ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-br-sm' : 'bg-white text-gray-800 border border-gray-100 shadow-sm rounded-bl-sm'" class="inline-block px-4 py-2.5 rounded-2xl text-sm max-w-[78%] whitespace-pre-wrap leading-relaxed">
+              {{ msg.content }}
+            </div>
           </div>
         </div>
-        <div v-if="loading" class="text-left">
-          <div class="bg-white text-gray-500 border inline-block px-4 py-2 rounded-xl text-sm">思考中...</div>
+        <div v-if="loading" class="text-left fade-in-up">
+          <div class="flex items-center space-x-2">
+            <div class="w-7 h-7 rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-xs font-bold text-white">AI</div>
+            <div class="bg-white text-gray-500 border border-gray-100 shadow-sm inline-flex items-center space-x-1 px-4 py-2.5 rounded-2xl text-sm">
+              <span class="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce"></span>
+              <span class="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce" style="animation-delay: 0.1s"></span>
+              <span class="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></span>
+            </div>
+          </div>
         </div>
       </div>
-      <div class="p-3 border-t bg-white rounded-b-2xl">
+      <div class="p-4 border-t bg-white">
         <div class="flex space-x-2">
-          <input v-model="input" @keydown.enter="send" type="text" placeholder="咨询尺码、材质、售后等" class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-          <button @click="send" :disabled="loading || !input.trim()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-indigo-700 disabled:opacity-60">发送</button>
+          <input v-model="input" @keydown.enter="send" type="text" placeholder="咨询尺码、材质、售后等" class="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all" />
+          <button @click="send" :disabled="loading || !input.trim()" class="bg-gradient-to-r from-indigo-600 to-violet-600 text-white px-4 py-2.5 rounded-xl hover:shadow-lg hover:shadow-indigo-500/30 disabled:opacity-60 transition-all">
+            <PaperAirplaneIcon class="w-5 h-5" />
+          </button>
         </div>
       </div>
     </div>
-    <button @click="open = !open" class="bg-indigo-600 hover:bg-indigo-700 text-white rounded-full w-14 h-14 shadow-lg flex items-center justify-center text-2xl">
-      {{ open ? '×' : 'AI' }}
+    <button @click="open = !open" class="relative w-14 h-14 rounded-full bg-gradient-to-r from-indigo-600 via-violet-600 to-pink-500 text-white shadow-lg shadow-indigo-500/40 hover:shadow-xl hover:shadow-indigo-500/50 hover:scale-105 transition-all duration-300 flex items-center justify-center pulse-ring">
+      <ChatBubbleLeftEllipsisIcon v-if="!open" class="w-7 h-7" />
+      <XMarkIcon v-else class="w-7 h-7" />
     </button>
   </div>
 </template>
@@ -32,6 +52,12 @@
 import { ref, watch, nextTick, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import api from '../api/axios'
+import {
+  SparklesIcon,
+  XMarkIcon,
+  PaperAirplaneIcon,
+  ChatBubbleLeftEllipsisIcon,
+} from '@heroicons/vue/24/solid'
 
 const open = ref(false)
 const input = ref('')
