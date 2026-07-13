@@ -17,6 +17,7 @@ import MerchantKnowledge from '../views/merchant/Knowledge.vue'
 import MerchantReviews from '../views/merchant/ReviewsAnalysis.vue'
 import MerchantLiveScript from '../views/merchant/LiveScript.vue'
 import MerchantOrders from '../views/merchant/OrdersManage.vue'
+import MerchantAdminManagement from '../views/merchant/AdminManagement.vue'
 
 const routes = [
   { path: '/', redirect: '/login' },
@@ -48,6 +49,7 @@ const routes = [
       { path: 'reviews', component: MerchantReviews },
       { path: 'live-script', component: MerchantLiveScript },
       { path: 'orders', component: MerchantOrders },
+      { path: 'admin-management', component: MerchantAdminManagement },
     ]
   },
 ]

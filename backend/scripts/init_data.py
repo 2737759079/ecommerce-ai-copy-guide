@@ -16,35 +16,35 @@ def init():
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
-        # 创建商家账号
-        if not db.query(User).filter(User.username == "merchant").first():
-            merchant = User(
-                username="merchant",
-                password_hash=get_password_hash("merchant123"),
-                nickname="商家管理员",
+        # 创建管理员账号
+        if not db.query(User).filter(User.username == "admin").first():
+            admin = User(
+                username="admin",
+                password_hash=get_password_hash("123456"),
+                nickname="超级管理员",
                 role="merchant",
             )
-            db.add(merchant)
+            db.add(admin)
             db.commit()
-            print("商家账号已创建: merchant / merchant123")
+            print("管理员账号已创建: admin / 123456")
         else:
-            print("商家账号已存在")
+            print("管理员账号已存在")
 
         # 创建普通用户
         if not db.query(User).filter(User.username == "user").first():
             user = User(
                 username="user",
-                password_hash=get_password_hash("user123"),
+                password_hash=get_password_hash("123456"),
                 nickname="测试用户",
                 role="user",
             )
             db.add(user)
             db.commit()
-            print("普通用户已创建: user / user123")
+            print("普通用户已创建: user / 123456")
         else:
             print("普通用户已存在")
 
-        merchant = db.query(User).filter(User.username == "merchant").first()
+        admin = db.query(User).filter(User.username == "admin").first()
         user = db.query(User).filter(User.username == "user").first()
 
         # 示例商品
@@ -227,8 +227,8 @@ def init():
             print(f"评价已创建: {r['content'][:20]}...")
 
         print("\n数据初始化完成！")
-        print("商家账号: merchant / merchant123")
-        print("普通用户: user / user123")
+        print("管理员账号: admin / 123456")
+        print("普通用户: user / 123456")
     finally:
         db.close()
 

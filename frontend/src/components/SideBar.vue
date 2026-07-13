@@ -32,6 +32,7 @@ const menu = [
   { name: '评论情感分析', path: '/merchant/reviews' },
   { name: '直播/短视频脚本', path: '/merchant/live-script' },
   { name: '订单管理', path: '/merchant/orders' },
+  { name: '管理员管理', path: '/merchant/admin-management' },
 ]
 
 function isActive(path) {

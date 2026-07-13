@@ -38,6 +38,17 @@ class PasswordReset(BaseModel):
     new_password: str = Field(..., min_length=6)
 
 
+class AdminCreate(BaseModel):
+    username: str = Field(..., min_length=3, max_length=64)
+    password: str = Field(..., min_length=6)
+    nickname: Optional[str] = ""
+
+
+class AdminUpdate(BaseModel):
+    nickname: Optional[str] = None
+    password: Optional[str] = Field(None, min_length=6)
+
+
 class ProductBase(BaseModel):
     name: str
     category: Optional[str] = ""
