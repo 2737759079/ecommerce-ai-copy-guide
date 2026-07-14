@@ -5,7 +5,7 @@
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  background: #f3f4f6;
+  background: #F8F8FC;
 }
 
 /* scrollbar */
@@ -14,6 +14,6 @@ body {
   height: 6px;
 }
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #C4B5FD;
   border-radius: 3px;
 }

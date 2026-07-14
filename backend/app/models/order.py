@@ -12,6 +12,9 @@ class Order(Base):
     status = Column(String(32), default="pending")  # pending / paid / shipped / completed / cancelled
     total_amount = Column(Float, default=0.0)
     address = Column(String(512), default="")
+    recipient_name = Column(String(64), default="")
+    recipient_phone = Column(String(32), default="")
+    recipient_address = Column(String(512), default="")
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 

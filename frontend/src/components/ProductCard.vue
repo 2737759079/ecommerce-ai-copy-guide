@@ -11,7 +11,7 @@
       </div>
     </div>
     <div class="p-4">
-      <h3 class="font-semibold text-gray-800 truncate group-hover:text-indigo-600 transition-colors">{{ product.ai_title || product.name }}</h3>
+      <h3 class="font-semibold text-gray-800 truncate group-hover:text-primary transition-colors">{{ product.ai_title || product.name }}</h3>
       <p class="text-xs text-gray-500 mt-1.5 line-clamp-2 h-8">{{ product.ai_slogan || product.description || '暂无描述' }}</p>
       <div class="mt-3 flex items-center justify-between">
         <span class="text-lg font-bold text-gradient">¥{{ product.price }}</span>

@@ -2,18 +2,14 @@
   <div class="fade-in-up">
     <div class="flex items-center justify-between mb-6">
       <h2 class="text-2xl font-bold text-gray-800 flex items-center space-x-2">
-        <ChartPieIcon class="w-7 h-7 text-indigo-600" />
+        <ChartPieIcon class="w-7 h-7 text-primary" />
         <span>数据看板</span>
       </h2>
     </div>
 
     <!-- 日期选择 -->
-    <div class="bg-white rounded-2xl shadow-md p-4 mb-6 flex gap-4 flex-wrap items-center">
-      <label class="text-sm font-medium text-gray-600 flex items-center space-x-1">
-        <CalendarIcon class="w-4 h-4" />
-        <span>选择日期</span>
-      </label>
-      <input type="date" v-model="selectedDate" @change="loadData" class="input-modern w-auto text-sm py-2" />
+    <div class="bg-white rounded-2xl shadow-md p-4 mb-6 flex gap-4 flex-wrap items-end">
+      <FormInput type="date" v-model="selectedDate" label="选择日期" @change="loadData" :icon="CalendarIcon" input-class="w-auto text-sm py-2" />
       <button @click="setToday" class="btn-secondary text-sm py-2">今天</button>
     </div>
 
@@ -34,15 +30,12 @@
     <!-- 订单查询 -->
     <div class="bg-white rounded-2xl shadow-md p-6 mb-6">
       <h3 class="font-bold text-lg mb-4 flex items-center space-x-2">
-        <MagnifyingGlassIcon class="w-5 h-5 text-indigo-600" />
+        <MagnifyingGlassIcon class="w-5 h-5 text-primary" />
         <span>订单查询</span>
       </h3>
-      <div class="flex gap-3 flex-wrap mb-4">
-        <div class="relative flex-1 min-w-[200px]">
-          <MagnifyingGlassIcon class="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-          <input v-model="query.keyword" placeholder="搜索订单号/用户昵称" class="input-modern pl-10 text-sm w-full" />
-        </div>
-        <select v-model="query.status" class="input-modern text-sm w-40">
+      <div class="flex gap-3 flex-wrap items-end mb-4">
+        <FormInput v-model="query.keyword" label="关键词" placeholder="请输入订单号或用户昵称" :icon="MagnifyingGlassIcon" class="flex-1 min-w-[200px]" input-class="text-sm" />
+        <FormSelect v-model="query.status" label="状态" :icon="AdjustmentsHorizontalIcon" class="w-40" select-class="text-sm">
           <option value="">全部状态</option>
           <option value="pending">待支付</option>
           <option value="paid">已支付</option>
@@ -50,7 +43,7 @@
           <option value="completed">已完成</option>
           <option value="refunded">已退款</option>
           <option value="cancelled">已取消</option>
-        </select>
+        </FormSelect>
         <button @click="searchOrders" class="btn-primary text-sm px-5">查询</button>
       </div>
       <div class="overflow-x-auto rounded-xl border border-gray-100">
@@ -63,7 +56,7 @@
               <td class="px-4 py-3 font-mono text-sm">{{ o.order_no }}</td>
               <td>
                 <div class="flex items-center space-x-2">
-                  <div class="w-7 h-7 rounded-full bg-gradient-to-br from-indigo-400 to-pink-400 flex items-center justify-center text-white text-xs font-bold">{{ (o.user_nickname || 'U').charAt(0).toUpperCase() }}</div>
+                  <div class="w-7 h-7 rounded-full bg-gradient-to-br from-primary to-accent-blue flex items-center justify-center text-white text-xs font-bold">{{ (o.user_nickname || 'U').charAt(0).toUpperCase() }}</div>
                   <div>
                     <p class="text-sm">{{ o.user_nickname }}</p>
                     <p class="text-xs text-gray-400">{{ o.user_display_id }}</p>
@@ -83,7 +76,7 @@
     <!-- 当日最近订单 -->
     <div class="bg-white rounded-2xl shadow-md p-6">
       <h3 class="font-bold text-lg mb-4 flex items-center space-x-2">
-        <ClockIcon class="w-5 h-5 text-indigo-600" />
+        <ClockIcon class="w-5 h-5 text-primary" />
         <span>当日最近订单</span>
       </h3>
       <div class="overflow-x-auto rounded-xl border border-gray-100">
@@ -96,7 +89,7 @@
               <td class="px-4 py-3 font-mono text-sm">{{ o.order_no }}</td>
               <td>
                 <div class="flex items-center space-x-2">
-                  <div class="w-7 h-7 rounded-full bg-gradient-to-br from-indigo-400 to-pink-400 flex items-center justify-center text-white text-xs font-bold">{{ (o.user_nickname || 'U').charAt(0).toUpperCase() }}</div>
+                  <div class="w-7 h-7 rounded-full bg-gradient-to-br from-primary to-accent-blue flex items-center justify-center text-white text-xs font-bold">{{ (o.user_nickname || 'U').charAt(0).toUpperCase() }}</div>
                   <div>
                     <p class="text-sm">{{ o.user_nickname }}</p>
                     <p class="text-xs text-gray-400">{{ o.user_display_id }}</p>
@@ -118,6 +111,8 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import api from '../../api/axios'
+import FormInput from '../../components/ui/FormInput.vue'
+import FormSelect from '../../components/ui/FormSelect.vue'
 import {
   ChartPieIcon,
   CalendarIcon,
@@ -127,6 +122,7 @@ import {
   XCircleIcon,
   MagnifyingGlassIcon,
   ClockIcon,
+  AdjustmentsHorizontalIcon,
 } from '@heroicons/vue/24/outline'
 
 function formatDate(d) {

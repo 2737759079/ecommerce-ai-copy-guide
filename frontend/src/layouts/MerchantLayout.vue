@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen flex bg-gray-50">
+  <div class="min-h-screen flex bg-page">
     <SideBar />
     <main class="flex-1 p-6 overflow-auto">
       <router-view />

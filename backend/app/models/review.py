@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, Text, DateTime, ForeignKey, func
+from sqlalchemy import Column, Integer, String, Float, Text, DateTime, ForeignKey, func, JSON
 from app.database import Base
 
 
@@ -13,4 +13,6 @@ class Review(Base):
     content = Column(Text, default="")
     sentiment = Column(String(16), default="neutral")  # positive / neutral / negative
     source = Column(String(16), default="user")  # user / merchant
+    images = Column(JSON, default=list)
+    video_url = Column(String(512), default="")
     created_at = Column(DateTime, server_default=func.now())

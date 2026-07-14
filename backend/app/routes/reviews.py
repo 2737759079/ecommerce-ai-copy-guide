@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, func
 from typing import List, Optional
@@ -15,28 +15,47 @@ from app.models.order import Order
 from app.schemas import ReviewCreate, ReviewOut, SentimentStats, MerchantReviewCreate
 from app.utils.security import get_current_user, require_merchant
 from app.services import sentiment_service, ai_service
+from app.utils.helpers import save_upload_file
 
 router = APIRouter()
 
 
 @router.post("", response_model=ReviewOut)
-def create_review(payload: ReviewCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    product = db.query(Product).filter(Product.id == payload.product_id).first()
+def create_review(
+    product_id: int = Form(...),
+    order_id: Optional[int] = Form(None),
+    rating: int = Form(...),
+    content: str = Form(...),
+    images: List[UploadFile] = File(default=[]),
+    video: Optional[UploadFile] = File(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    product = db.query(Product).filter(Product.id == product_id).first()
     if not product:
         raise HTTPException(status_code=404, detail="商品不存在")
-    if payload.order_id:
-        order = db.query(Order).filter(Order.id == payload.order_id, Order.user_id == current_user.id).first()
+    if order_id:
+        order = db.query(Order).filter(Order.id == order_id, Order.user_id == current_user.id).first()
         if not order:
             raise HTTPException(status_code=403, detail="无权评价该订单")
-    sentiment = sentiment_service.analyze(payload.content)
+    sentiment = sentiment_service.analyze(content)
+    image_urls = []
+    for img in images:
+        if img.filename:
+            image_urls.append(save_upload_file(img, "reviews/images"))
+    video_url = ""
+    if video and video.filename:
+        video_url = save_upload_file(video, "reviews/videos")
     review = Review(
         user_id=current_user.id,
-        product_id=payload.product_id,
-        order_id=payload.order_id,
-        rating=payload.rating,
-        content=payload.content,
+        product_id=product_id,
+        order_id=order_id,
+        rating=rating,
+        content=content,
         sentiment=sentiment,
         source="user",
+        images=image_urls,
+        video_url=video_url,
     )
     db.add(review)
     db.commit()
@@ -101,6 +120,8 @@ def merchant_reviews(
             "content": r.content,
             "sentiment": r.sentiment,
             "source": r.source,
+            "images": r.images or [],
+            "video_url": r.video_url or "",
             "created_at": r.created_at,
             "product_name": p.name,
             "product_display_id": p.display_id,

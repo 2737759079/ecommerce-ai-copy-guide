@@ -3,26 +3,14 @@
     <h2 class="text-2xl font-bold text-gray-800 mb-6">管理员管理</h2>
     <div class="bg-white rounded-xl shadow-sm p-6 mb-6">
       <h3 class="font-bold text-lg mb-4">{{ editingId ? '编辑管理员' : '新增管理员' }}</h3>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div>
-          <label class="block text-sm text-gray-600 mb-1">账号</label>
-          <input v-model="form.username" :disabled="!!editingId" type="text" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="请输入账号" />
-        </div>
-        <div>
-          <label class="block text-sm text-gray-600 mb-1">昵称</label>
-          <input v-model="form.nickname" type="text" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="请输入昵称" />
-        </div>
-        <div>
-          <label class="block text-sm text-gray-600 mb-1">密码{{ editingId ? '（留空则不修改）' : '' }}</label>
-          <input v-model="form.password" type="password" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="请输入密码" />
-        </div>
-        <div>
-          <label class="block text-sm text-gray-600 mb-1">确认密码{{ editingId ? '（留空则不修改）' : '' }}</label>
-          <input v-model="form.confirm_password" type="password" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="再次输入密码" />
-        </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <FormInput v-model="form.username" :disabled="!!editingId" label="账号" type="text" :icon="UserIcon" placeholder="请输入账号" />
+        <FormInput v-model="form.nickname" label="昵称" type="text" :icon="UserIcon" placeholder="请输入昵称" />
+        <FormInput v-model="form.password" :label="editingId ? '密码（留空则不修改）' : '密码'" type="password" :icon="LockClosedIcon" placeholder="请输入密码" />
+        <FormInput v-model="form.confirm_password" :label="editingId ? '确认密码（留空则不修改）' : '确认密码'" type="password" :icon="LockClosedIcon" placeholder="再次输入密码" />
       </div>
       <div class="mt-4 flex space-x-3">
-        <button @click="save" :disabled="saving" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-60">
+        <button @click="save" :disabled="saving" class="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-dark disabled:opacity-60">
           {{ saving ? '保存中...' : '保存' }}
         </button>
         <button v-if="editingId" @click="resetForm" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300">取消</button>
@@ -30,9 +18,9 @@
       <p v-if="error" class="text-red-500 text-sm mt-3">{{ error }}</p>
     </div>
 
-    <div class="bg-white rounded-xl shadow-sm p-4 mb-6 flex gap-4">
-      <input v-model="searchKeyword" placeholder="搜索账号/昵称/ID" class="border rounded-lg px-3 py-2 text-sm flex-1" />
-      <button @click="load" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-indigo-700">搜索</button>
+    <div class="bg-white rounded-xl shadow-sm p-4 mb-6 flex gap-4 items-end">
+      <FormInput v-model="searchKeyword" label="搜索" placeholder="搜索账号/昵称/ID" :icon="MagnifyingGlassIcon" class="flex-1" />
+      <button @click="load" class="bg-primary text-white px-4 py-2 rounded-lg text-sm hover:bg-primary-dark">搜索</button>
     </div>
 
     <div class="bg-white rounded-xl shadow-sm overflow-hidden">
@@ -55,8 +43,8 @@
             <td>{{ admin.role === 'merchant' ? '管理员' : admin.role }}</td>
             <td>{{ new Date(admin.created_at).toLocaleString() }}</td>
             <td>
-              <button @click="edit(admin)" class="text-indigo-600 hover:underline mr-3">编辑</button>
-              <button @click="note(admin)" class="text-blue-600 hover:underline mr-3">备注</button>
+              <button @click="edit(admin)" class="text-primary hover:underline mr-3">编辑</button>
+              <button @click="note(admin)" class="text-primary hover:underline mr-3">备注</button>
               <button @click="remove(admin)" :disabled="admin.id === currentUserId" :class="admin.id === currentUserId ? 'text-gray-400 cursor-not-allowed' : 'text-red-600 hover:underline'">删除</button>
             </td>
           </tr>
@@ -68,10 +56,10 @@
     <div v-if="showNote" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div class="bg-white rounded-xl p-6 w-full max-w-md">
         <h3 class="font-bold text-lg mb-4">备注：{{ noteAdmin?.nickname }}</h3>
-        <textarea v-model="noteText" rows="4" class="w-full border rounded-lg px-3 py-2" placeholder="仅本人可见"></textarea>
+        <FormInput v-model="noteText" label="备注内容" :icon="DocumentTextIcon" type="textarea" :rows="4" placeholder="请输入备注内容，仅本人可见" />
         <div class="mt-6 flex justify-end space-x-2">
           <button @click="showNote = false" class="px-4 py-2 border rounded-lg">取消</button>
-          <button @click="saveNote" class="px-4 py-2 bg-indigo-600 text-white rounded-lg">保存</button>
+          <button @click="saveNote" class="px-4 py-2 bg-primary text-white rounded-lg">保存</button>
         </div>
       </div>
     </div>
@@ -82,6 +70,8 @@
 import { ref, onMounted, computed } from 'vue'
 import api from '../../api/axios'
 import { useAuthStore } from '../../stores/auth'
+import FormInput from '../../components/ui/FormInput.vue'
+import { UserIcon, LockClosedIcon, MagnifyingGlassIcon, DocumentTextIcon } from '@heroicons/vue/24/outline'
 
 const auth = useAuthStore()
 const currentUserId = computed(() => auth.user?.id)

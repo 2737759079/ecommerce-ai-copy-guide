@@ -142,6 +142,9 @@ class OrderItemCreate(BaseModel):
 class OrderCreate(BaseModel):
     items: List[OrderItemCreate]
     address: Optional[str] = ""
+    address_name: Optional[str] = ""
+    address_phone: Optional[str] = ""
+    address_detail: Optional[str] = ""
 
 
 class OrderItemOut(BaseModel):
@@ -166,6 +169,9 @@ class OrderOut(BaseModel):
     status: str
     total_amount: float
     address: str
+    recipient_name: Optional[str] = ""
+    recipient_phone: Optional[str] = ""
+    recipient_address: Optional[str] = ""
     created_at: datetime
     updated_at: datetime
     items: List[OrderItemOut]
@@ -190,6 +196,8 @@ class ReviewOut(BaseModel):
     content: str
     sentiment: str
     source: str
+    images: Optional[List[str]] = []
+    video_url: Optional[str] = ""
     created_at: datetime
 
     class Config:
@@ -242,8 +250,13 @@ class AddressOut(AddressCreate):
 
 
 class AICopyRequest(BaseModel):
-    product_id: int
+    product_id: Optional[int] = None
     style: Optional[str] = "professional"
+    name: Optional[str] = ""
+    category: Optional[str] = ""
+    description: Optional[str] = ""
+    price: Optional[float] = 0.0
+    specs: Optional[List[str]] = []
 
 
 class AIScriptRequest(BaseModel):
@@ -273,3 +286,32 @@ class SentimentStats(BaseModel):
 class AdminNoteCreate(BaseModel):
     target_admin_id: int
     note: str
+
+
+class CustomerServiceMessageCreate(BaseModel):
+    content: str
+    product_id: Optional[int] = None
+
+
+class CustomerServiceMessageOut(BaseModel):
+    id: int
+    user_id: int
+    product_id: Optional[int] = None
+    sender_role: str
+    content: str
+    is_read: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class CustomerServiceThreadOut(BaseModel):
+    user_id: int
+    user_nickname: str
+    user_display_id: str
+    user_avatar_url: str
+    last_message: str
+    last_time: datetime
+    unread_count: int
+    product_id: Optional[int] = None

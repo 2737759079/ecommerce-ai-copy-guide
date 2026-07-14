@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy import desc, func
+from sqlalchemy import desc, func, or_
 from typing import List, Dict
-from datetime import datetime
+from datetime import datetime, timedelta
 from app.database import get_db
 from app.models.user import User
 from app.models.product import Product
@@ -26,6 +26,9 @@ def _serialize_order(order: Order, user_map: Dict[int, User] = None, product_map
         "status": order.status,
         "total_amount": order.total_amount,
         "address": order.address,
+        "recipient_name": order.recipient_name,
+        "recipient_phone": order.recipient_phone,
+        "recipient_address": order.recipient_address,
         "created_at": order.created_at,
         "updated_at": order.updated_at,
         "items": [
@@ -43,9 +46,31 @@ def _serialize_order(order: Order, user_map: Dict[int, User] = None, product_map
     }
 
 
+def _apply_shipping(order: Order, name: str, phone: str, address: str):
+    order.recipient_name = name or ""
+    order.recipient_phone = phone or ""
+    order.recipient_address = address or ""
+    parts = [p for p in [name, phone, address] if p]
+    order.address = " ".join(parts)
+
+
+def _auto_cancel_expired_orders(db: Session):
+    deadline = datetime.now() - timedelta(minutes=15)
+    expired = db.query(Order).filter(Order.status == "pending", Order.created_at < deadline).all()
+    for order in expired:
+        for item in order.items:
+            product = db.query(Product).filter(Product.id == item.product_id).first()
+            if product:
+                product.stock += item.quantity
+        order.status = "cancelled"
+    if expired:
+        db.commit()
+
+
 @router.post("/checkout", response_model=OrderOut)
 def checkout(payload: OrderCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    if not payload.address or not payload.address.strip():
+    has_structured = payload.address_name or payload.address_phone or payload.address_detail
+    if not payload.address.strip() and not has_structured:
         raise HTTPException(status_code=400, detail="请先填写收货地址")
     total = 0.0
     order = Order(user_id=current_user.id, status="pending", total_amount=0.0, address=payload.address)
@@ -67,6 +92,8 @@ def checkout(payload: OrderCreate, db: Session = Depends(get_db), current_user: 
             first_product_id = item.product_id
     order.total_amount = total
     order.order_no = generate_order_no(db, first_product_id)
+    if has_structured:
+        _apply_shipping(order, payload.address_name or "", payload.address_phone or "", payload.address_detail or "")
     db.commit()
     db.refresh(order)
     return _serialize_order(order, {current_user.id: current_user}, product_map)
@@ -74,11 +101,22 @@ def checkout(payload: OrderCreate, db: Session = Depends(get_db), current_user: 
 
 @router.get("/my", response_model=List[OrderOut])
 def my_orders(status: str = None, keyword: str = None, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    _auto_cancel_expired_orders(db)
     q = db.query(Order).filter(Order.user_id == current_user.id)
     if status:
         q = q.filter(Order.status == status)
     if keyword:
-        q = q.filter(Order.order_no.contains(keyword))
+        q = q.outerjoin(OrderItem, OrderItem.order_id == Order.id) \
+              .outerjoin(Product, Product.id == OrderItem.product_id) \
+              .filter(or_(
+                  Order.order_no.contains(keyword),
+                  Product.name.contains(keyword),
+                  Order.recipient_name.contains(keyword),
+                  Order.recipient_phone.contains(keyword),
+                  Order.recipient_address.contains(keyword),
+                  Order.address.contains(keyword),
+              )) \
+              .distinct()
     orders = q.order_by(desc(Order.created_at)).all()
     product_ids = {i.product_id for o in orders for i in o.items}
     product_map = {p.id: p for p in db.query(Product).filter(Product.id.in_(product_ids)).all()}
@@ -88,6 +126,7 @@ def my_orders(status: str = None, keyword: str = None, db: Session = Depends(get
 
 @router.get("/all/list", response_model=List[OrderOut])
 def all_orders(keyword: str = None, status: str = None, db: Session = Depends(get_db), _: User = Depends(require_merchant)):
+    _auto_cancel_expired_orders(db)
     q = db.query(Order)
     if keyword:
         q = q.filter(Order.order_no.contains(keyword))
@@ -103,6 +142,7 @@ def all_orders(keyword: str = None, status: str = None, db: Session = Depends(ge
 
 @router.get("/dashboard")
 def dashboard(date_str: str = None, db: Session = Depends(get_db), _: User = Depends(require_merchant)):
+    _auto_cancel_expired_orders(db)
     if date_str:
         selected = datetime.strptime(date_str, "%Y-%m-%d").date()
     else:
@@ -134,6 +174,7 @@ def dashboard(date_str: str = None, db: Session = Depends(get_db), _: User = Dep
 
 @router.get("/{order_id}", response_model=OrderOut)
 def get_order(order_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    _auto_cancel_expired_orders(db)
     order = db.query(Order).filter(Order.id == order_id).first()
     if not order:
         raise HTTPException(status_code=404, detail="订单不存在")
@@ -151,6 +192,7 @@ def get_order(order_id: int, db: Session = Depends(get_db), current_user: User =
 
 @router.post("/{order_id}/pay")
 def pay_order(order_id: int, method: str = "wechat", db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    _auto_cancel_expired_orders(db)
     order = db.query(Order).filter(Order.id == order_id).first()
     if not order:
         raise HTTPException(status_code=404, detail="订单不存在")
@@ -210,12 +252,33 @@ def cancel_order(order_id: int, db: Session = Depends(get_db), current_user: Use
     return {"ok": True, "status": order.status}
 
 
-@router.put("/{order_id}/address")
-def update_address(order_id: int, address: str, db: Session = Depends(get_db), _: User = Depends(require_merchant)):
+@router.put("/{order_id}/shipping")
+def update_shipping(
+    order_id: int,
+    name: str,
+    phone: str,
+    address: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     order = db.query(Order).filter(Order.id == order_id).first()
     if not order:
         raise HTTPException(status_code=404, detail="订单不存在")
-    order.address = address
+    if order.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="无权操作")
+    if order.status not in ("pending", "paid"):
+        raise HTTPException(status_code=400, detail="只有待支付或已支付订单可修改收货信息")
+    _apply_shipping(order, name, phone, address)
+    db.commit()
+    return {"ok": True}
+
+
+@router.put("/{order_id}/address")
+def update_address(order_id: int, name: str, phone: str, address: str, db: Session = Depends(get_db), _: User = Depends(require_merchant)):
+    order = db.query(Order).filter(Order.id == order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="订单不存在")
+    _apply_shipping(order, name, phone, address)
     db.commit()
     return {"ok": True}
 

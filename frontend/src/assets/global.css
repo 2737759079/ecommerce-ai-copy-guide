@@ -1,11 +1,18 @@
-/* 全局设计令牌与工具类 */
+/* 全局设计令牌与工具类 - CVPR 浅色风格 */
 
 :root {
-  --gradient-primary: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #ec4899 100%);
-  --gradient-dark: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #312e81 100%);
-  --gradient-card: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-  --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 10px 15px -3px rgba(0, 0, 0, 0.08);
-  --shadow-card-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  --color-primary: #9B87F5;
+  --color-primary-dark: #7C67E1;
+  --color-primary-light: #EDE9FE;
+  --color-accent-blue: #93C5FD;
+  --color-accent-yellow: #FDE68A;
+  --color-bg: #F8F8FC;
+  --color-surface: #FFFFFF;
+  --gradient-primary: linear-gradient(135deg, #9B87F5 0%, #B4A6F7 100%);
+  --gradient-accent: linear-gradient(135deg, #93C5FD 0%, #FDE68A 100%);
+  --gradient-card: linear-gradient(135deg, #ffffff 0%, #FAFAFF 100%);
+  --shadow-card: 0 4px 6px -1px rgba(155, 135, 245, 0.06), 0 10px 15px -3px rgba(155, 135, 245, 0.1);
+  --shadow-card-hover: 0 10px 15px -3px rgba(155, 135, 245, 0.1), 0 20px 25px -5px rgba(155, 135, 245, 0.12);
   --radius-lg: 1rem;
   --radius-xl: 1.25rem;
   --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
@@ -84,13 +91,13 @@
 
 /* 玻璃拟态 */
 .glass {
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
 
 .glass-dark {
-  background: rgba(15, 23, 42, 0.85);
+  background: rgba(155, 135, 245, 0.12);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
@@ -103,12 +110,12 @@
   padding: 0.625rem 1.25rem;
   font-weight: 500;
   transition: all var(--transition-fast);
-  box-shadow: 0 4px 14px 0 rgba(99, 102, 241, 0.35);
+  box-shadow: 0 4px 14px 0 rgba(155, 135, 245, 0.35);
 }
 
 .btn-primary:hover:not(:disabled) {
   transform: translateY(-1px) scale(1.01);
-  box-shadow: 0 6px 20px 0 rgba(99, 102, 241, 0.45);
+  box-shadow: 0 6px 20px 0 rgba(155, 135, 245, 0.45);
 }
 
 .btn-primary:disabled {
@@ -119,8 +126,8 @@
 /* 次要按钮 */
 .btn-secondary {
   background: white;
-  color: #374151;
-  border: 1px solid #e5e7eb;
+  color: #4B5563;
+  border: 1px solid #E5E7EB;
   border-radius: 0.75rem;
   padding: 0.625rem 1.25rem;
   font-weight: 500;
@@ -128,14 +135,15 @@
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background: #f9fafb;
-  border-color: #d1d5db;
+  background: #FAFAFF;
+  border-color: var(--color-primary);
+  color: var(--color-primary);
   transform: translateY(-1px);
 }
 
 /* 成功/危险按钮 */
 .btn-success {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  background: linear-gradient(135deg, #34D399 0%, #10B981 100%);
   color: white;
   border-radius: 0.75rem;
   padding: 0.625rem 1.25rem;
@@ -150,7 +158,7 @@
 }
 
 .btn-danger {
-  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  background: linear-gradient(135deg, #F87171 0%, #EF4444 100%);
   color: white;
   border-radius: 0.75rem;
   padding: 0.625rem 1.25rem;
@@ -166,21 +174,21 @@
 
 /* 卡片 */
 .card {
-  background: white;
+  background: var(--color-surface);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-card);
   transition: all var(--transition-base);
 }
 
 .card-hover:hover {
-  transform: translateY(-2px);
+  transform: translateY(-4px);
   box-shadow: var(--shadow-card-hover);
 }
 
 /* 输入框 */
 .input-modern {
   width: 100%;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #E2E8F0;
   border-radius: 0.75rem;
   padding: 0.625rem 1rem;
   transition: all var(--transition-fast);
@@ -189,8 +197,23 @@
 
 .input-modern:focus {
   outline: none;
-  border-color: #8b5cf6;
-  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(155, 135, 245, 0.15);
+}
+
+.input-modern::placeholder {
+  color: #94A3B8;
+}
+
+.input-modern:disabled {
+  background: #F1F5F9;
+  color: #64748B;
+  cursor: not-allowed;
+}
+
+select.input-modern {
+  background-image: none;
+  padding-right: 2.5rem;
 }
 
 /* 状态标签 */
@@ -203,12 +226,13 @@
   font-weight: 500;
 }
 
-.badge-green { background: #dcfce7; color: #166534; }
-.badge-yellow { background: #fef9c3; color: #854d0e; }
-.badge-red { background: #fee2e2; color: #991b1b; }
-.badge-blue { background: #dbeafe; color: #1e40af; }
-.badge-gray { background: #f3f4f6; color: #374151; }
-.badge-indigo { background: #e0e7ff; color: #3730a3; }
+.badge-green { background: #DCFCE7; color: #166534; }
+.badge-yellow { background: #FEF9C3; color: #854D0E; }
+.badge-red { background: #FEE2E2; color: #991B1B; }
+.badge-blue { background: #DBEAFE; color: #1E40AF; }
+.badge-gray { background: #F3F4F6; color: #374151; }
+.badge-indigo { background: #E0E7FF; color: #3730A3; }
+.badge-purple { background: var(--color-primary-light); color: var(--color-primary-dark); }
 
 /* 渐变文字 */
 .text-gradient {
@@ -235,8 +259,8 @@
 }
 
 .table-modern th {
-  background: #f8fafc;
-  color: #64748b;
+  background: #FAFAFF;
+  color: #7C7DBF;
   font-weight: 600;
   text-transform: uppercase;
   font-size: 0.75rem;
@@ -248,12 +272,12 @@
 }
 
 .table-modern tbody tr:hover {
-  background: #f8fafc;
+  background: #FAFAFF;
 }
 
 .table-modern td,
 .table-modern th {
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid #F1F5F9;
 }
 
 /* 脉冲按钮 */
@@ -274,17 +298,17 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: #F1F5F9;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #C4B5FD;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: #A78BFA;
 }
 
 /* 响应式隐藏 */

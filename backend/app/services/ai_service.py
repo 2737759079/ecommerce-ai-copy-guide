@@ -123,7 +123,11 @@ def generate_review_summary(reviews: list) -> dict:
 
 
 def chat_with_context(messages: list, context: str = "") -> str:
-    system = "你是一名专业电商导购助手，基于店铺商品知识库回答用户问题，简洁准确。"
+    system = (
+        "你是一名专业电商导购助手。回答时请优先结合店铺当前在售商品信息，"
+        "并参考知识库内容。若问题涉及具体商品，请给出该商品的价格、规格、库存等。"
+        "若无法确定，请建议用户联系人工客服。"
+    )
     if context:
         system += f"\n\n参考信息：\n{context}"
     full_messages = [{"role": "system", "content": system}] + messages

@@ -13,23 +13,38 @@ router = APIRouter()
 
 @router.post("/copy", response_model=AIResponse)
 def generate_copy(payload: AICopyRequest, db: Session = Depends(get_db), _: User = Depends(require_merchant)):
-    product = db.query(Product).filter(Product.id == payload.product_id).first()
-    if not product:
-        raise HTTPException(status_code=404, detail="商品不存在")
-    data = {
-        "id": product.id,
-        "name": product.name,
-        "category": product.category,
-        "description": product.description,
-        "price": product.price,
-        "specs": product.specs or [],
-    }
+    if payload.product_id:
+        product = db.query(Product).filter(Product.id == payload.product_id).first()
+        if not product:
+            raise HTTPException(status_code=404, detail="商品不存在")
+        data = {
+            "id": product.id,
+            "name": product.name,
+            "category": product.category,
+            "description": product.description,
+            "price": product.price,
+            "specs": product.specs or [],
+        }
+    else:
+        if not payload.name:
+            raise HTTPException(status_code=400, detail="请输入商品名称")
+        data = {
+            "id": None,
+            "name": payload.name,
+            "category": payload.category or "",
+            "description": payload.description or "",
+            "price": payload.price or 0.0,
+            "specs": payload.specs or [],
+        }
     result = ai_service.generate_product_copy(data, payload.style)
-    product.ai_title = result.get("title", "")
-    product.ai_selling_points = result.get("selling_points", "")
-    product.ai_detail = result.get("detail", "")
-    product.ai_slogan = result.get("slogan", "")
-    db.commit()
+    if payload.product_id:
+        product = db.query(Product).filter(Product.id == payload.product_id).first()
+        if product:
+            product.ai_title = result.get("title", "")
+            product.ai_selling_points = result.get("selling_points", "")
+            product.ai_detail = result.get("detail", "")
+            product.ai_slogan = result.get("slogan", "")
+            db.commit()
     return AIResponse(result=result)
 
 

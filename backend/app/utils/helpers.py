@@ -15,6 +15,8 @@ def ensure_upload_dir():
     os.makedirs(os.path.join(UPLOAD_DIR, "images"), exist_ok=True)
     os.makedirs(os.path.join(UPLOAD_DIR, "videos"), exist_ok=True)
     os.makedirs(os.path.join(UPLOAD_DIR, "avatars"), exist_ok=True)
+    os.makedirs(os.path.join(UPLOAD_DIR, "reviews", "images"), exist_ok=True)
+    os.makedirs(os.path.join(UPLOAD_DIR, "reviews", "videos"), exist_ok=True)
 
 
 def save_upload_file(file: UploadFile, subfolder: str) -> str:

@@ -1,10 +1,12 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from app.database import engine, Base
-from app.routes import auth, users, products, orders, reviews, ai, chat, knowledge, addresses
+from app.database import engine, Base, SessionLocal
+from app.routes import auth, users, products, orders, reviews, ai, chat, knowledge, addresses, customer_service
 from app.utils.helpers import ensure_upload_dir
 import os
+import threading
+import time
 
 Base.metadata.create_all(bind=engine)
 ensure_upload_dir()
@@ -31,6 +33,25 @@ app.include_router(ai.router, prefix="/api/ai", tags=["AI生成"])
 app.include_router(chat.router, prefix="/api/chat", tags=["智能导购"])
 app.include_router(knowledge.router, prefix="/api/knowledge", tags=["知识库"])
 app.include_router(addresses.router, prefix="/api/addresses", tags=["地址"])
+app.include_router(customer_service.router, prefix="/api/cs", tags=["客服"])
+
+
+@app.on_event("startup")
+def start_auto_cancel_scheduler():
+    def loop():
+        while True:
+            time.sleep(60)
+            try:
+                db = SessionLocal()
+                try:
+                    orders._auto_cancel_expired_orders(db)
+                finally:
+                    db.close()
+            except Exception:
+                pass
+
+    t = threading.Thread(target=loop, daemon=True)
+    t.start()
 
 
 @app.get("/api/health")

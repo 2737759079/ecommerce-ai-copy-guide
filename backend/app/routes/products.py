@@ -44,9 +44,16 @@ def categories(db: Session = Depends(get_db)):
     return [r[0] for r in rows if r[0]]
 
 
-@router.get("/my/favorites", response_model=List[FavoriteOut])
+@router.get("/my/favorites")
 def my_favorites(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    return db.query(Favorite).filter(Favorite.user_id == current_user.id).all()
+    rows = (
+        db.query(Favorite, Product)
+        .join(Product, Favorite.product_id == Product.id)
+        .filter(Favorite.user_id == current_user.id)
+        .order_by(desc(Favorite.created_at))
+        .all()
+    )
+    return [{"id": f.id, "product_id": f.product_id, "product": p, "created_at": f.created_at} for f, p in rows]
 
 
 @router.get("/my/browse-history")

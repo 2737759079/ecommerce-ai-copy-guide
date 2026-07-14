@@ -10,6 +10,7 @@ import ProductDetail from '../views/user/ProductDetail.vue'
 import Cart from '../views/user/Cart.vue'
 import Orders from '../views/user/Orders.vue'
 import Profile from '../views/user/Profile.vue'
+import UserCustomerService from '../views/user/CustomerService.vue'
 import MerchantDashboard from '../views/merchant/Dashboard.vue'
 import MerchantProducts from '../views/merchant/Products.vue'
 import MerchantAICopy from '../views/merchant/AICopy.vue'
@@ -18,6 +19,8 @@ import MerchantReviews from '../views/merchant/ReviewsAnalysis.vue'
 import MerchantLiveScript from '../views/merchant/LiveScript.vue'
 import MerchantOrders from '../views/merchant/OrdersManage.vue'
 import MerchantAdminManagement from '../views/merchant/AdminManagement.vue'
+import MerchantProfile from '../views/merchant/Profile.vue'
+import MerchantCustomerService from '../views/merchant/CustomerService.vue'
 
 const routes = [
   { path: '/', redirect: '/login' },
@@ -34,6 +37,7 @@ const routes = [
       { path: 'cart', component: Cart },
       { path: 'orders', component: Orders },
       { path: 'profile', component: Profile },
+      { path: 'customer-service', component: UserCustomerService },
     ]
   },
   {
@@ -50,6 +54,8 @@ const routes = [
       { path: 'live-script', component: MerchantLiveScript },
       { path: 'orders', component: MerchantOrders },
       { path: 'admin-management', component: MerchantAdminManagement },
+      { path: 'profile', component: MerchantProfile },
+      { path: 'customer-service', component: MerchantCustomerService },
     ]
   },
 ]

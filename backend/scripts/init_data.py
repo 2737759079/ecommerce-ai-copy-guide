@@ -17,23 +17,34 @@ def init():
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
-        # 创建管理员账号
-        if not db.query(User).filter(User.username == "admin").first():
-            admin = User(
-                username="admin",
+        # 创建/更新商家管理员账号
+        merchant = db.query(User).filter(User.username == "merchant").first()
+        if not merchant:
+            merchant = User(
+                username="merchant",
                 display_id=generate_user_display_id(db),
                 password_hash=get_password_hash("123456"),
-                nickname="超级管理员",
+                nickname="商家管理员",
                 role="merchant",
             )
-            db.add(admin)
+            db.add(merchant)
             db.commit()
-            print("管理员账号已创建: admin / 123456")
+            print("商家管理员账号已创建: merchant / 123456")
         else:
-            print("管理员账号已存在")
+            merchant.password_hash = get_password_hash("123456")
+            db.commit()
+            print("商家管理员账号已更新密码: merchant / 123456")
 
-        # 创建普通用户
-        if not db.query(User).filter(User.username == "user").first():
+        # 兼容旧 admin 账号，同步更新密码
+        admin = db.query(User).filter(User.username == "admin").first()
+        if admin:
+            admin.password_hash = get_password_hash("123456")
+            db.commit()
+            print("旧管理员账号 admin 密码已同步为: admin / 123456")
+
+        # 创建/更新普通用户
+        user = db.query(User).filter(User.username == "user").first()
+        if not user:
             user = User(
                 username="user",
                 display_id=generate_user_display_id(db),
@@ -45,7 +56,9 @@ def init():
             db.commit()
             print("普通用户已创建: user / 123456")
         else:
-            print("普通用户已存在")
+            user.password_hash = get_password_hash("123456")
+            db.commit()
+            print("普通用户已更新密码: user / 123456")
 
         admin = db.query(User).filter(User.username == "admin").first()
         user = db.query(User).filter(User.username == "user").first()
@@ -230,7 +243,7 @@ def init():
             print(f"评价已创建: {r['content'][:20]}...")
 
         print("\n数据初始化完成！")
-        print("管理员账号: admin / 123456")
+        print("商家管理员账号: merchant / 123456")
         print("普通用户: user / 123456")
     finally:
         db.close()

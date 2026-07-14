@@ -9,6 +9,7 @@ from app.models.favorite import Favorite
 from app.models.address import Address
 from app.models.browse_history import BrowseHistory
 from app.models.admin_note import AdminNote
+from app.models.customer_service import CustomerServiceMessage
 
 __all__ = [
     "User",
@@ -23,4 +24,5 @@ __all__ = [
     "Address",
     "BrowseHistory",
     "AdminNote",
+    "CustomerServiceMessage",
 ]

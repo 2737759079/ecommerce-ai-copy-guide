@@ -20,7 +20,7 @@
               :key="idx"
               @click="selectedImage = normalizeImage(img)"
               class="w-16 h-16 rounded-xl overflow-hidden border-2 flex-shrink-0 transition-all"
-              :class="selectedImage === normalizeImage(img) ? 'border-indigo-600 ring-2 ring-indigo-100' : 'border-transparent hover:border-gray-300'"
+              :class="selectedImage === normalizeImage(img) ? 'border-primary ring-2 ring-primary-light' : 'border-transparent hover:border-gray-300'"
             >
               <img :src="normalizeImage(img)" class="w-full h-full object-cover" />
             </button>
@@ -46,7 +46,7 @@
                 v-for="spec in product.specs"
                 :key="spec"
                 @click="selectedSpec = spec"
-                :class="selectedSpec === spec ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-200' : 'bg-gray-50 text-gray-700 border-gray-200 hover:border-indigo-300 hover:text-indigo-600'"
+                :class="selectedSpec === spec ? 'bg-primary text-white border-primary shadow-md shadow-primary/20' : 'bg-gray-50 text-gray-700 border-gray-200 hover:border-primary/50 hover:text-primary'"
                 class="px-4 py-2 rounded-xl text-sm border transition-all"
               >
                 {{ spec }}
@@ -67,54 +67,90 @@
         </div>
       </div>
 
-      <!-- AI 生成详情 -->
+      <!-- 商品详情 -->
       <div class="mt-10 border-t pt-8">
         <div class="flex items-center space-x-2 mb-4">
-          <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-pink-500 flex items-center justify-center">
-            <SparklesIcon class="w-4 h-4 text-white" />
+          <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent-blue flex items-center justify-center">
+            <DocumentTextIcon class="w-4 h-4 text-white" />
           </div>
-          <h3 class="text-lg font-bold text-gray-800">AI 生成详情</h3>
+          <h3 class="text-lg font-bold text-gray-800">商品详情 / 精选推荐</h3>
         </div>
-        <div class="bg-gradient-to-br from-indigo-50 to-violet-50 rounded-2xl p-6 text-sm text-gray-700 space-y-4 border border-indigo-100">
-          <p><span class="font-semibold text-indigo-700">核心卖点：</span>{{ product.ai_selling_points || '暂无' }}</p>
-          <p><span class="font-semibold text-indigo-700">详情文案：</span>{{ product.ai_detail || '暂无' }}</p>
-          <p><span class="font-semibold text-indigo-700">广告语：</span>{{ product.ai_slogan || '暂无' }}</p>
+        <div class="bg-gradient-to-br from-primary-light to-accent-blue/20 rounded-2xl p-6 text-sm text-gray-700 space-y-4 border border-primary-light">
+          <p><span class="font-semibold text-primary-dark">核心卖点：</span>{{ product.ai_selling_points || '暂无' }}</p>
+          <p><span class="font-semibold text-primary-dark">商品介绍：</span>{{ product.ai_detail || '暂无' }}</p>
+          <p><span class="font-semibold text-primary-dark">推荐语：</span>{{ product.ai_slogan || '暂无' }}</p>
         </div>
       </div>
 
       <!-- 用户评价 -->
-      <div class="mt-10 border-t pt-8">
-        <h3 class="text-lg font-bold text-gray-800 mb-4">用户评价</h3>
-        <div v-if="reviews.length === 0" class="text-gray-500 text-sm bg-gray-50 rounded-xl p-6 text-center">暂无评价</div>
-        <div v-else class="space-y-3">
-          <div v-for="r in reviews" :key="r.id" class="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow">
-            <div class="flex items-center justify-between mb-2">
+      <div class="mt-10 border-t border-primary-light/50 pt-8">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-3">
+          <div>
+            <h3 class="text-lg font-bold text-gray-800 flex items-center space-x-2">
+              <StarIcon class="w-5 h-5 text-yellow-400" />
+              <span>用户评价</span>
+            </h3>
+            <p class="text-sm text-gray-500 mt-1 flex items-center space-x-2">
+              <span class="font-bold text-gray-700">{{ averageRating }}</span>
+              <span>分 / 共 {{ reviewCounts[''] }} 条评价</span>
+            </p>
+          </div>
+          <div class="flex bg-white rounded-xl p-1 shadow-sm border border-primary-light/50">
+            <button
+              v-for="tab in reviewTabs"
+              :key="tab.value"
+              @click="reviewSentiment = tab.value"
+              :class="reviewSentiment === tab.value ? 'bg-primary-light text-primary shadow-sm' : 'text-gray-500 hover:text-gray-700'"
+              class="px-4 py-1.5 rounded-lg text-sm font-medium transition-all"
+            >{{ tab.label }} ({{ reviewCounts[tab.value] }})</button>
+          </div>
+        </div>
+        <div v-if="filteredReviews.length === 0" class="text-gray-500 text-sm bg-white rounded-2xl p-8 text-center shadow-card border border-primary-light/30">暂无评价</div>
+        <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div v-for="(r, idx) in filteredReviews" :key="r.id" class="card card-hover rounded-2xl p-5 fade-in-up" :style="{ animationDelay: idx * 50 + 'ms' }">
+            <div class="flex items-center justify-between mb-3">
               <div class="flex items-center space-x-2">
-                <div class="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-400 to-pink-400 flex items-center justify-center text-white text-xs font-bold">
+                <div class="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-accent-blue flex items-center justify-center text-white text-xs font-bold">
                   {{ (r.user_nickname || 'U').charAt(0).toUpperCase() }}
                 </div>
-                <span class="text-sm font-medium text-gray-700">{{ r.user_nickname || '匿名用户' }}</span>
+                <div>
+                  <span class="text-sm font-medium text-gray-700 block">{{ r.user_nickname || '匿名用户' }}</span>
+                  <span class="text-xs text-gray-400">{{ new Date(r.created_at).toLocaleDateString() }}</span>
+                </div>
               </div>
               <span :class="sentimentClass(r.sentiment)" class="badge">{{ sentimentText(r.sentiment) }}</span>
             </div>
-            <div class="flex items-center mb-2">
+            <div class="flex items-center mb-3">
               <span class="text-yellow-400 text-sm">{{ '★'.repeat(r.rating) }}{{ '☆'.repeat(5 - r.rating) }}</span>
-              <span class="text-xs text-gray-400 ml-2">{{ new Date(r.created_at).toLocaleDateString() }}</span>
             </div>
-            <p class="text-sm text-gray-700">{{ r.content }}</p>
+            <p class="text-sm text-gray-700 leading-relaxed mb-3">{{ r.content }}</p>
+            <div v-if="r.images && r.images.length" class="flex flex-wrap gap-2 mb-3">
+              <img
+                v-for="(img, idx) in r.images"
+                :key="idx"
+                :src="normalizeImage(img)"
+                class="w-16 h-16 object-cover rounded-lg border cursor-pointer hover:opacity-90"
+                @click="previewImage = normalizeImage(img)"
+              />
+            </div>
+            <video v-if="r.video_url" :src="normalizeImage(r.video_url)" controls class="h-32 rounded-lg"></video>
           </div>
         </div>
+      </div>
+
+      <div v-if="previewImage" @click="previewImage = ''" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+        <img :src="previewImage" class="max-w-full max-h-full rounded-lg" />
       </div>
     </div>
   </div>
   <div v-else class="text-center py-24 fade-in-up">
-    <div class="inline-block animate-spin rounded-full h-10 w-10 border-4 border-indigo-200 border-t-indigo-600 mb-4"></div>
+    <div class="inline-block animate-spin rounded-full h-10 w-10 border-4 border-primary-light border-t-primary mb-4"></div>
     <p class="text-gray-500">加载中...</p>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import api from '../../api/axios'
 import {
@@ -123,16 +159,44 @@ import {
   TagIcon,
   ShoppingCartIcon,
   HeartIcon,
-  SparklesIcon,
+  DocumentTextIcon,
+  StarIcon,
 } from '@heroicons/vue/24/outline'
 
 const route = useRoute()
 const product = ref(null)
-const reviews = ref([])
+const allReviews = ref([])
+const reviewsLoaded = ref(false)
 const selectedSpec = ref('')
 const favorited = ref(false)
 const selectedImage = ref('')
+const previewImage = ref('')
+const reviewSentiment = ref('')
+const reviewTabs = [
+  { label: '全部', value: '' },
+  { label: '好评', value: 'positive' },
+  { label: '中评', value: 'neutral' },
+  { label: '差评', value: 'negative' },
+]
 const baseUrl = 'http://127.0.0.1:8000'
+
+const filteredReviews = computed(() => {
+  if (!reviewSentiment.value) return allReviews.value
+  return allReviews.value.filter(r => r.sentiment === reviewSentiment.value)
+})
+
+const reviewCounts = computed(() => ({
+  '': allReviews.value.length,
+  positive: allReviews.value.filter(r => r.sentiment === 'positive').length,
+  neutral: allReviews.value.filter(r => r.sentiment === 'neutral').length,
+  negative: allReviews.value.filter(r => r.sentiment === 'negative').length,
+}))
+
+const averageRating = computed(() => {
+  if (!allReviews.value.length) return '0.0'
+  const avg = allReviews.value.reduce((sum, r) => sum + (r.rating || 0), 0) / allReviews.value.length
+  return avg.toFixed(1)
+})
 
 function normalizeImage(url) {
   if (!url) return ''
@@ -149,9 +213,13 @@ async function loadProduct() {
 }
 
 async function loadReviews() {
+  if (reviewsLoaded.value) return
   const res = await api.get(`/reviews/product/${route.params.id}`)
-  reviews.value = res.data
+  allReviews.value = res.data
+  reviewsLoaded.value = true
 }
+
+watch(reviewSentiment, loadReviews)
 
 function addToCart() {
   const cart = JSON.parse(localStorage.getItem('cart') || '[]')

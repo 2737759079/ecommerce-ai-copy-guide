@@ -64,5 +64,18 @@ dist-ssr/
 .DS_Store
 Thumbs.db
 
+# Backups & temporary files
+*.db.bak
+backend/scripts/inspect_schema.py
+backend/scripts/migrate_*.py
+backend/scripts/test_*.py
+gemini-code-*.py
+taobao_auth.json
+
+# User generated uploads (avatars, review images/videos)
+backend/uploads/avatars/*
+backend/uploads/reviews/**/*
+!backend/uploads/.gitkeep
+
 # Trae internal planning
 .trae/

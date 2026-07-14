@@ -1,80 +1,101 @@
 <template>
-  <div>
-    <div class="flex justify-between items-center mb-6">
-      <h2 class="text-2xl font-bold text-gray-800">商品管理</h2>
-      <div class="flex items-center space-x-2">
-        <input v-model="searchKeyword" @keyup.enter="loadProducts" placeholder="搜索商品名称" class="border rounded-lg px-3 py-2 text-sm" />
-        <button @click="loadProducts" class="bg-gray-100 text-gray-700 px-3 py-2 rounded-lg text-sm hover:bg-gray-200">搜索</button>
-        <button @click="openCreate" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700">新增商品</button>
-        <button @click="downloadTemplate" class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700">下载模板</button>
-        <button @click="exportProducts" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">导出</button>
+  <div class="fade-in-up">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+      <div>
+        <h2 class="text-2xl font-bold text-gray-800">商品管理</h2>
+        <p class="text-sm text-gray-500 mt-1">共 {{ products.length }} 件商品 · 点击状态标签即可上下架</p>
+      </div>
+      <div class="flex items-center flex-wrap gap-2">
+        <FormInput v-model="searchKeyword" label="搜索商品" @keyup.enter="loadProducts" placeholder="请输入商品名称" :icon="MagnifyingGlassIcon" class="min-w-[180px]" />
+        <button @click="loadProducts" class="bg-page text-primary border border-primary-light px-3 py-2 rounded-xl text-sm hover:bg-primary-light transition-colors">
+          <MagnifyingGlassIcon class="w-4 h-4 inline" />
+        </button>
+        <button @click="openCreate" class="btn-primary text-sm">新增商品</button>
+        <button @click="downloadTemplate" class="bg-white text-gray-700 border border-gray-200 px-4 py-2 rounded-xl text-sm hover:bg-page transition-colors">下载模板</button>
+        <button @click="exportProducts" class="bg-white text-green-600 border border-green-200 px-4 py-2 rounded-xl text-sm hover:bg-green-50 transition-colors">导出</button>
         <input type="file" @change="importProducts" accept=".xlsx,.xls,.json" class="hidden" ref="fileInput" />
-        <button @click="$refs.fileInput.click()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">导入</button>
+        <button @click="$refs.fileInput.click()" class="bg-blue-50 text-blue-700 border border-blue-200 px-4 py-2 rounded-xl text-sm hover:bg-blue-100 transition-colors">导入</button>
       </div>
     </div>
-    <div class="bg-white rounded-xl shadow-sm overflow-hidden">
-      <table class="w-full text-sm text-left">
-        <thead class="bg-gray-50 text-gray-600">
-          <tr>
-            <th class="px-4 py-3">商品ID</th>
-            <th>名称</th>
-            <th>分类</th>
-            <th>价格</th>
-            <th>库存</th>
-            <th>状态</th>
-            <th>操作</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="p in products" :key="p.id" class="border-b hover:bg-gray-50">
-            <td class="px-4 py-3">{{ p.display_id }}</td>
-            <td>{{ p.name }}</td>
-            <td>{{ p.category }}</td>
-            <td>¥{{ p.price }}</td>
-            <td>{{ p.stock }}</td>
-            <td><span :class="p.status === 'on' ? 'text-green-600' : p.status === 'deleted' ? 'text-red-500' : 'text-gray-500'">{{ statusText(p.status) }}</span></td>
-            <td class="space-x-2">
-              <button @click="edit(p)" class="text-indigo-600 hover:underline">编辑</button>
-              <button @click="confirmRemove(p)" class="text-red-500 hover:underline">删除</button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+
+    <div v-if="products.length === 0" class="text-center py-20 bg-white rounded-3xl shadow-card">
+      <div class="w-20 h-20 bg-primary-light rounded-full flex items-center justify-center mx-auto mb-4">
+        <CubeIcon class="w-10 h-10 text-primary/60" />
+      </div>
+      <p class="text-gray-500">暂无商品</p>
+    </div>
+
+    <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+      <div
+        v-for="(p, idx) in products"
+        :key="p.id"
+        class="card card-hover rounded-2xl overflow-hidden fade-in-up"
+        :style="{ animationDelay: idx * 50 + 'ms' }"
+      >
+        <div class="relative h-44 bg-page overflow-hidden group">
+          <img v-if="firstImage(p)" :src="firstImage(p)" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+          <div v-else class="w-full h-full flex flex-col items-center justify-center text-gray-400">
+            <PhotoIcon class="w-12 h-12 mb-2 text-primary/30" />
+            <span class="text-xs">暂无图片</span>
+          </div>
+          <div class="absolute top-3 left-3">
+            <span class="badge" :class="statusBadgeClass(p.status)">{{ statusText(p.status) }}</span>
+          </div>
+        </div>
+        <div class="p-4">
+          <div class="flex justify-between items-start mb-2">
+            <h3 class="font-bold text-gray-800 line-clamp-1">{{ p.name }}</h3>
+            <span class="text-xs text-gray-400 font-mono">{{ p.display_id }}</span>
+          </div>
+          <p class="text-xs text-gray-500 mb-3">{{ p.category || '未分类' }}</p>
+          <div class="flex items-baseline space-x-1 mb-3">
+            <span class="text-xs text-gray-500">售价</span>
+            <span class="text-xl font-bold text-gradient">¥{{ p.price }}</span>
+          </div>
+          <div class="flex items-center justify-between text-sm text-gray-600 mb-4">
+            <span class="flex items-center space-x-1">
+              <ArchiveBoxIcon class="w-4 h-4 text-primary/60" />
+              <span>库存 {{ p.stock }}</span>
+            </span>
+            <span v-if="p.specs && p.specs.length" class="text-xs text-gray-400">{{ p.specs.length }} 种规格</span>
+          </div>
+          <div class="flex gap-2">
+            <button
+              @click="toggleStatus(p)"
+              :class="p.status === 'on' ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200' : 'bg-green-100 text-green-700 hover:bg-green-200'"
+              class="flex-1 py-2 rounded-xl text-sm font-medium transition-colors"
+            >
+              {{ p.status === 'on' ? '下架' : '上架' }}
+            </button>
+            <button @click="edit(p)" class="px-3 py-2 rounded-xl bg-primary-light text-primary hover:bg-primary hover:text-white transition-colors">
+              <PencilSquareIcon class="w-4 h-4" />
+            </button>
+            <button @click="confirmRemove(p)" class="px-3 py-2 rounded-xl bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-colors">
+              <TrashIcon class="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div v-if="showForm" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div class="bg-white rounded-xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
-        <h3 class="font-bold text-lg mb-4">{{ editing ? '编辑商品' : '新增商品' }}</h3>
+      <div class="bg-white rounded-2xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto modal-in">
+        <h3 class="font-bold text-lg mb-4 flex items-center space-x-2">
+          <CubeIcon class="w-5 h-5 text-primary" />
+          <span>{{ editing ? '编辑商品' : '新增商品' }}</span>
+        </h3>
         <div class="space-y-3">
-          <div>
-            <label class="block text-sm text-gray-600 mb-1">商品名称</label>
-            <input v-model="form.name" class="w-full border rounded-lg px-3 py-2" />
-          </div>
-          <div>
-            <label class="block text-sm text-gray-600 mb-1">分类</label>
-            <input v-model="form.category" class="w-full border rounded-lg px-3 py-2" />
-          </div>
-          <div>
-            <label class="block text-sm text-gray-600 mb-1">描述</label>
-            <textarea v-model="form.description" rows="2" class="w-full border rounded-lg px-3 py-2"></textarea>
-          </div>
+          <FormInput v-model="form.name" label="商品名称" :icon="CubeIcon" placeholder="请输入商品名称" />
+          <FormInput v-model="form.category" label="商品分类" :icon="TagIcon" placeholder="请输入商品分类" />
+          <FormInput v-model="form.description" label="商品描述" :icon="DocumentTextIcon" type="textarea" :rows="2" placeholder="请输入商品描述" />
           <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="block text-sm text-gray-600 mb-1">价格（单位：元，请填写商品售价）</label>
-              <input v-model.number="form.price" type="number" min="0" step="0.01" placeholder="例如：99.00" class="w-full border rounded-lg px-3 py-2" />
-            </div>
-            <div>
-              <label class="block text-sm text-gray-600 mb-1">库存（可售数量，请填写整数）</label>
-              <input v-model.number="form.stock" type="number" min="0" step="1" placeholder="例如：100" class="w-full border rounded-lg px-3 py-2" />
-            </div>
+            <FormInput v-model.number="form.price" label="价格（元）" :icon="CurrencyYenIcon" type="number" min="0" step="0.01" placeholder="请填写商品售价，例如 99.00" />
+            <FormInput v-model.number="form.stock" label="库存（件）" :icon="ArchiveBoxIcon" type="number" min="0" step="1" placeholder="请填写可售数量，例如 100" />
           </div>
+          <FormInput v-model="specsText" label="商品规格" :icon="ListBulletIcon" placeholder="用逗号分隔，例如：红色,蓝色" />
           <div>
-            <label class="block text-sm text-gray-600 mb-1">规格（用逗号分隔）</label>
-            <input v-model="specsText" class="w-full border rounded-lg px-3 py-2" />
-          </div>
-          <div>
-            <label class="block text-sm text-gray-600 mb-1">商品图片</label>
-            <input type="file" multiple accept="image/*" @change="handleImages" class="w-full border rounded-lg px-3 py-2" />
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">商品图片</label>
+            <input type="file" multiple accept="image/*" @change="handleImages" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-primary-light file:text-primary-dark hover:file:bg-primary-light/80" />
             <div class="flex flex-wrap gap-2 mt-2">
               <div v-for="(img, idx) in previewImages" :key="idx" class="relative w-16 h-16">
                 <img :src="img" class="w-full h-full object-cover rounded-lg" />
@@ -83,32 +104,29 @@
             </div>
           </div>
           <div>
-            <label class="block text-sm text-gray-600 mb-1">商品视频</label>
-            <input type="file" accept="video/*" @change="handleVideo" class="w-full border rounded-lg px-3 py-2" />
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">商品视频</label>
+            <input type="file" accept="video/*" @change="handleVideo" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-primary-light file:text-primary-dark hover:file:bg-primary-light/80" />
             <video v-if="form.video_url && !videoFile" :src="baseUrl + form.video_url" controls class="mt-2 h-32 rounded-lg"></video>
           </div>
-          <div>
-            <label class="block text-sm text-gray-600 mb-1">状态</label>
-            <select v-model="form.status" class="w-full border rounded-lg px-3 py-2">
-              <option value="on">上架</option>
-              <option value="off">下架</option>
-            </select>
-          </div>
+          <FormSelect v-model="form.status" label="商品状态" :icon="AdjustmentsHorizontalIcon">
+            <option value="on">上架</option>
+            <option value="off">下架</option>
+          </FormSelect>
         </div>
         <div class="mt-6 flex justify-end space-x-2">
-          <button @click="showForm = false" class="px-4 py-2 border rounded-lg">取消</button>
-          <button @click="save" class="px-4 py-2 bg-indigo-600 text-white rounded-lg">保存</button>
+          <button @click="showForm = false" class="px-4 py-2 border rounded-xl hover:bg-page transition-colors">取消</button>
+          <button @click="save" class="px-4 py-2 bg-primary text-white rounded-xl hover:bg-primary-dark transition-colors">保存</button>
         </div>
       </div>
     </div>
 
     <div v-if="showConfirm" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div class="bg-white rounded-xl p-6 w-80">
+      <div class="bg-white rounded-2xl p-6 w-80 modal-in">
         <h3 class="font-bold text-lg mb-4">确认删除</h3>
         <p class="text-sm text-gray-600 mb-4">确定要删除商品 "{{ confirmItem?.name }}" 吗？</p>
         <div class="flex justify-end space-x-2">
-          <button @click="showConfirm = false" class="px-4 py-2 border rounded-lg">取消</button>
-          <button @click="doRemove" class="px-4 py-2 bg-red-500 text-white rounded-lg">确定</button>
+          <button @click="showConfirm = false" class="px-4 py-2 border rounded-xl hover:bg-page transition-colors">取消</button>
+          <button @click="doRemove" class="px-4 py-2 bg-red-500 text-white rounded-xl hover:bg-red-600 transition-colors">确定</button>
         </div>
       </div>
     </div>
@@ -116,9 +134,24 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import api from '../../api/axios'
+import FormInput from '../../components/ui/FormInput.vue'
+import FormSelect from '../../components/ui/FormSelect.vue'
+import {
+  MagnifyingGlassIcon,
+  CubeIcon,
+  TagIcon,
+  DocumentTextIcon,
+  CurrencyYenIcon,
+  ArchiveBoxIcon,
+  ListBulletIcon,
+  AdjustmentsHorizontalIcon,
+  PencilSquareIcon,
+  TrashIcon,
+  PhotoIcon,
+} from '@heroicons/vue/24/outline'
 
 const route = useRoute()
 const baseUrl = 'http://127.0.0.1:8000'
@@ -135,13 +168,32 @@ const showConfirm = ref(false)
 const confirmItem = ref(null)
 
 function statusText(status) {
-  const map = { on: '上架', off: '下架', deleted: '已删除' }
+  const map = { on: '上架中', off: '已下架', deleted: '已删除' }
   return map[status] || status
+}
+
+function statusBadgeClass(status) {
+  return status === 'on' ? 'badge-green' : status === 'deleted' ? 'badge-red' : 'badge-gray'
+}
+
+function firstImage(product) {
+  const images = product?.images || []
+  const url = images[0] || ''
+  if (!url) return ''
+  return url.startsWith('http') ? url : baseUrl + url
 }
 
 async function loadProducts() {
   const res = await api.get('/products', { params: { status: '', keyword: searchKeyword.value } })
   products.value = res.data
+}
+
+async function toggleStatus(p) {
+  const next = p.status === 'on' ? 'off' : 'on'
+  const formData = new FormData()
+  formData.append('status', next)
+  await api.put(`/products/${p.id}`, formData, { headers: { 'Content-Type': 'multipart/form-data' } })
+  loadProducts()
 }
 
 function openCreate() {

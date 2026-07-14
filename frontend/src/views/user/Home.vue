@@ -2,18 +2,12 @@
   <div class="fade-in-up">
     <!-- 搜索区 -->
     <div class="bg-white/80 backdrop-blur-md rounded-2xl shadow-lg p-5 mb-8 border border-white/50">
-      <div class="flex flex-col md:flex-row gap-4">
-        <div class="relative flex-1">
-          <MagnifyingGlassIcon class="w-5 h-5 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-          <input v-model="keyword" @keydown.enter="loadProducts" type="text" placeholder="搜索心仪商品" class="input-modern pl-11 w-full" />
-        </div>
-        <div class="relative md:w-56">
-          <FunnelIcon class="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-          <select v-model="category" @change="loadProducts" class="input-modern pl-10 w-full appearance-none cursor-pointer">
-            <option value="">全部分类</option>
-            <option v-for="c in categories" :key="c" :value="c">{{ c }}</option>
-          </select>
-        </div>
+      <div class="flex flex-col md:flex-row gap-4 items-end">
+        <FormInput v-model="keyword" label="搜索商品" @keydown.enter="loadProducts" type="text" placeholder="请输入商品名称" :icon="MagnifyingGlassIcon" class="flex-1" />
+        <FormSelect v-model="category" label="商品分类" @change="loadProducts" :icon="FunnelIcon" class="md:w-56">
+          <option value="">全部分类</option>
+          <option v-for="c in categories" :key="c" :value="c">{{ c }}</option>
+        </FormSelect>
         <button @click="loadProducts" class="btn-primary flex items-center justify-center space-x-2 px-8">
           <MagnifyingGlassIcon class="w-4 h-4" />
           <span>搜索</span>
@@ -25,7 +19,7 @@
           v-for="c in categories.slice(0, 6)"
           :key="c"
           @click="category = c; loadProducts()"
-          :class="category === c ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-indigo-50 hover:text-indigo-600'"
+          :class="category === c ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 hover:bg-primary-light hover:text-primary'"
           class="text-xs px-3 py-1.5 rounded-full transition-colors"
         >
           {{ c }}
@@ -42,8 +36,8 @@
       </div>
     </div>
     <div v-else-if="products.length === 0" class="text-center py-24 fade-in-up">
-      <div class="w-20 h-20 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-4">
-        <MagnifyingGlassIcon class="w-10 h-10 text-indigo-400" />
+      <div class="w-20 h-20 bg-primary-light rounded-full flex items-center justify-center mx-auto mb-4">
+        <MagnifyingGlassIcon class="w-10 h-10 text-primary/60" />
       </div>
       <p class="text-gray-500 text-lg">暂无商品</p>
       <p class="text-sm text-gray-400 mt-1">换个关键词试试吧</p>
@@ -59,6 +53,8 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '../../api/axios'
 import ProductCard from '../../components/ProductCard.vue'
+import FormInput from '../../components/ui/FormInput.vue'
+import FormSelect from '../../components/ui/FormSelect.vue'
 import { MagnifyingGlassIcon, FunnelIcon } from '@heroicons/vue/24/outline'
 
 const router = useRouter()
